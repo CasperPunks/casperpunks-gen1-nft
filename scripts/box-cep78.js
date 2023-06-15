@@ -518,41 +518,8 @@ const CEP78 = class {
         });
     }
 
-    async mint({ keys, tokenOwner, metadataJson, paymentAmount, ttl }) {
-        // Owner input is accountHash
-        tokenOwner = tokenOwner.startsWith("account-hash-")
-            ? tokenOwner.slice(13)
-            : tokenOwner;
 
-
-        let ownerAccountHashByte = Uint8Array.from(
-            Buffer.from(tokenOwner, 'hex'),
-        )
-
-
-        const ownerKey = createRecipientAddress(new CLAccountHash(ownerAccountHashByte))
-
-
-        let token_metadata = new CLString(JSON.stringify(metadataJson))
-        let runtimeArgs = {};
-        runtimeArgs = RuntimeArgs.fromMap({
-            token_owner: ownerKey,
-            token_meta_data: token_metadata,
-        });
-
-        console.log(runtimeArgs)
-
-        return await this.contractClient.contractCall({
-            entryPoint: "mint",
-            keys: keys,
-            paymentAmount: paymentAmount ? paymentAmount : "10000000000",
-            runtimeArgs,
-            cb: (deployHash) => { },
-            ttl: ttl ? ttl : DEFAULT_TTL,
-        });
-    }
-
-    async mintBoxx({ keys, tokenOwners, numberOfBoxs, metadataJson, paymentAmount, ttl }) {
+    async mintBox({ keys, tokenOwners, numberOfBoxs, metadataJson, paymentAmount, ttl }) {
 
         let tokenOwnerArray = CLValueBuilder.list(tokenOwners.map(owner => createRecipientAddress(CLPublicKey.fromHex(owner))))
 
@@ -564,6 +531,7 @@ const CEP78 = class {
             token_meta_data: token_metadata,
             number_of_boxs: numberOfBoxArray
         });
+        console.log("Before")
         return await this.contractClient.contractCall({
             entryPoint: "mint",
             keys: keys,
@@ -750,29 +718,7 @@ const CEP78 = class {
             ttl: ttl ? ttl : DEFAULT_TTL,
         });
     }
-    async mintBox({ keys, tokenOwner, metadataJson, paymentAmount, ttl }) {
 
-        const ownerKey = createRecipientAddress(CLPublicKey.fromHex(tokenOwner))
-        // let token_metadata = CLValueBuilder.list(metadataJson.map(id => CLValueBuilder.string(id)))
-        // let hashes = CLValueBuilder.list(hashesMap.map(hash => CLValueBuilder.string(hash)))
-
-        let token_metadata = new CLString(JSON.stringify(metadataJson))
-        let runtimeArgs = {};
-        runtimeArgs = RuntimeArgs.fromMap({
-            token_owner: ownerKey,
-            token_meta_data: token_metadata,
-        });
-
-        console.log("before")
-        return await this.contractClient.contractCall({
-            entryPoint: "mint",
-            keys: keys,
-            paymentAmount: paymentAmount ? paymentAmount : "22000000000",
-            runtimeArgs,
-            cb: (deployHash) => { },
-            ttl: ttl ? ttl : DEFAULT_TTL,
-        });
-    }
     async setWhitelist({ keys, whitelistedUsers, paymentAmount, ttl }) {
         let addressesWhitelistArr = whitelistedUsers.map((e) => CLValueBuilder.string(e));
         let arr = []

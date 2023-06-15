@@ -54,22 +54,21 @@ async function main() {
   console.log("A")
 
   try {
-    for (var i = 0; i < 1; i++) {
 
-      let hash = await csp.mintBoxx({
-        keys: KEYS,
-        metadataJson: meta_data_json,
-        tokenOwners: ["017e80955a6d493a4a4b9f1b5dd23d2edcdc2c8b00fcd9689f2f735f501bd088c5", "020261207299a7d59261d28a0780b92f76b5caff3ee2e3f767d7cd832e269c181767"],
-        numberOfBoxs: [3, 3],
-      })
+    let hash = await csp.mintBox({
+      keys: KEYS,
+      metadataJson: meta_data_json,
+      tokenOwners: ["017e80955a6d493a4a4b9f1b5dd23d2edcdc2c8b00fcd9689f2f735f501bd088c5", "020261207299a7d59261d28a0780b92f76b5caff3ee2e3f767d7cd832e269c181767"],
+      numberOfBoxs: [3, 3],
+    })
 
-      console.log(`... Contract installation deployHash: ${hash}`);
+    console.log(`... Contract installation deployHash: ${hash}`);
 
-      await getDeploy(NODE_ADDRESS, hash);
+    await getDeploy(NODE_ADDRESS, hash);
 
-      console.log(`... Contract installed successfully.`);
+    console.log(`... Contract installed successfully.`);
 
-    }
+
 
   } catch (e) {
     console.error(e)

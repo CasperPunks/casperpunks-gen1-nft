@@ -49,19 +49,19 @@ async function main() {
   try {
     for (var i = 0; i < 1; i++) {
 
-      let a = await csp.getOwnerOf("3")
-      console.log(a)
+      // let a = await csp.getOwnerOf("3")
+      // console.log(a)
 
-      // let hash = await csp.registerOwner({
-      //   keys: KEYS,
-      //   tokenOwner: account3,
-      // })
+      let hash = await csp.registerOwner({
+        keys: KEYS,
+        tokenOwner: account3,
+      })
 
-      // console.log(`... Contract installation deployHash: ${hash}`);
+      console.log(`... Contract installation deployHash: ${hash}`);
 
-      // await getDeploy(NODE_ADDRESS, hash);
+      await getDeploy(NODE_ADDRESS, hash);
 
-      // console.log(`... Contract installed successfully.`);
+      console.log(`... Contract installed successfully.`);
 
       // let getOp = await csp.checkOperatorDictionaryKey("0202f92c9b79232db38584ad558cf5becf5bfd23987e4e1d36d49166289ed8208f5f", "f0f91595bc63e1ce2f015dbacdd816619f63053cdf5fb41f19d69ffecbba755f")
       // console.log("getOp ", getOp)
