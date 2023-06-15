@@ -6,7 +6,7 @@
 compile_error!("target arch should be wasm32: compile with '--target wasm32-unknown-unknown'");
 
 extern crate alloc;
-
+use crate::alloc::string::ToString;
 mod address;
 pub mod constants;
 mod entry_points;
@@ -27,6 +27,7 @@ use casper_types::{
 use events::FactoryEvent;
 
 pub const MINTING_START_TIME: &str = "minting_start_time";
+pub const MINTING_START_TIME_R3: &str = "minting_start_time_r3";
 pub const MINTING_END_TIME: &str = "minting_end_time";
 
 #[no_mangle]
@@ -36,26 +37,47 @@ pub extern "C" fn init() {
     }
     let contract_hash: Key = runtime::get_named_arg(ARG_CONTRACT_HASH);
     let total_box: u64 = runtime::get_named_arg("total_box");
+    let total_box_r3: u64 = runtime::get_named_arg("total_box_r3");
     let max_per_one: u8 = runtime::get_named_arg("max_per_one");
-    let start_time: u64 = runtime::get_named_arg("minting_start_time");
-    let end_time: u64 = runtime::get_named_arg("minting_end_time");
+    let max_per_one_r3: u8 = runtime::get_named_arg("max_per_one_r3");
+    let start_time: u64 = runtime::get_named_arg(MINTING_START_TIME);
+    let start_time_r3: u64 = runtime::get_named_arg(MINTING_START_TIME_R3);
+    let end_time: u64 = runtime::get_named_arg(MINTING_END_TIME);
+    let nft_contract_package: Key = runtime::get_named_arg(ARG_NFT_CONTRACT_PACKAGE);
 
     set_key(CONTRACT_HASH_KEY_NAME, contract_hash);
+    set_key(ARG_NFT_CONTRACT_PACKAGE, nft_contract_package);
     runtime::put_key("total_box", storage::new_uref(total_box as u64).into());
+    runtime::put_key(
+        "total_box_r3",
+        storage::new_uref(total_box_r3 as u64).into(),
+    );
+
     runtime::put_key("max_per_one", storage::new_uref(max_per_one as u8).into());
+    runtime::put_key(
+        "max_per_one_r3",
+        storage::new_uref(max_per_one_r3 as u8).into(),
+    );
     runtime::put_key("number_of_minted_box", storage::new_uref(0 as u64).into());
     runtime::put_key(
-        "minting_start_time",
+        "number_of_minted_box_r3",
+        storage::new_uref(0 as u64).into(),
+    );
+    runtime::put_key(
+        MINTING_START_TIME,
         storage::new_uref(start_time as u64).into(),
     );
     runtime::put_key(
-        "minting_end_time",
-        storage::new_uref(end_time as u64).into(),
+        MINTING_START_TIME_R3,
+        storage::new_uref(start_time_r3 as u64).into(),
     );
+    runtime::put_key(MINTING_END_TIME, storage::new_uref(end_time as u64).into());
 
     storage::new_dictionary(ADDRESSES_WHITELIST)
         .unwrap_or_revert_with(Error::FailedToCreateDictionary);
     storage::new_dictionary(NFT_MINTED_NUMBER)
+        .unwrap_or_revert_with(Error::FailedToCreateDictionary);
+    storage::new_dictionary(NFT_MINTED_NUMBER_R3)
         .unwrap_or_revert_with(Error::FailedToCreateDictionary);
 }
 
@@ -83,6 +105,13 @@ fn call() {
         Error::InvalidMintingStart,
     )
     .unwrap_or_revert();
+    let start_time_r3: u64 = helpers::get_named_arg_with_user_errors(
+        MINTING_START_TIME_R3,
+        Error::MissingMintingStart,
+        Error::InvalidMintingStart,
+    )
+    .unwrap_or_revert();
+
     let end_time: u64 = helpers::get_named_arg_with_user_errors(
         MINTING_END_TIME,
         Error::MissingMintingEnd,
@@ -97,8 +126,22 @@ fn call() {
     )
     .unwrap_or_revert();
 
+    let mint_fee_r3: U256 = helpers::get_named_arg_with_user_errors(
+        ARG_MINT_FEE_R3,
+        Error::MissingCsprMintFee,
+        Error::InvalidCsprMintFee,
+    )
+    .unwrap_or_revert();
+
     let total_box: u64 = helpers::get_named_arg_with_user_errors(
         "total_box",
+        Error::MissingCsprMintFee,
+        Error::InvalidCsprMintFee,
+    )
+    .unwrap_or_revert();
+
+    let total_box_r3: u64 = helpers::get_named_arg_with_user_errors(
+        "total_box_r3",
         Error::MissingCsprMintFee,
         Error::InvalidCsprMintFee,
     )
@@ -111,13 +154,21 @@ fn call() {
     )
     .unwrap_or_revert();
 
-    // //let fee_token: Key = runtime::get_named_arg(ARG_FEE_TOKEN_HASH);
+    let max_per_one_r3: u8 = helpers::get_named_arg_with_user_errors(
+        "max_per_one_r3",
+        Error::MissingCsprMintFee,
+        Error::InvalidCsprMintFee,
+    )
+    .unwrap_or_revert();
+
+    let nft_contract_package: Key = runtime::get_named_arg(ARG_NFT_CONTRACT_PACKAGE);
 
     let (contract_package_hash, access_uref) = storage::create_contract_package_at_hash();
     let named_keys: NamedKeys = named_keys::default(
         contract_name,
         contract_owner,
         mint_fee,
+        mint_fee_r3,
         contract_package_hash,
         fee_receiver,
         None,
@@ -126,13 +177,6 @@ fn call() {
     // Add new version to the package.
     let (contract_hash, _) =
         storage::add_contract_version(contract_package_hash, entry_points::default(), named_keys);
-
-    // let (contract_hash, _version) = storage::new_contract(
-    //     entry_points::default(),
-    //     Some(named_keys),
-    //     Some(String::from(contract_package_hash_key_name)),
-    //     None,
-    // );
 
     runtime::put_key(CONTRACT_OWNER_KEY_NAME, contract_owner);
     // runtime::put_key(DEV, dev);
@@ -148,9 +192,13 @@ fn call() {
         runtime_args! {
             "contract_hash" => Key::from(contract_hash),
             "total_box" => total_box,
+            "total_box_r3" => total_box_r3,
             "max_per_one" => max_per_one,
+            "max_per_one_r3" => max_per_one_r3,
             "minting_start_time" => start_time,
+            "minting_start_time_r3" => start_time_r3,
             "minting_end_time" => end_time,
+            ARG_NFT_CONTRACT_PACKAGE => nft_contract_package
         },
     );
 }
@@ -160,42 +208,42 @@ pub extern "C" fn set_addresses_whitelist() -> Result<(), Error> {
     // Check caller must be DEV account
     only_owner();
 
-    // Take valid new_addresses from runtime args
-    let new_addresses_whitelist = helpers::get_named_arg_with_user_errors::<Vec<Key>>(
-        ARG_NEW_ADDRESSES_WHITELIST,
-        Error::MissingNewAddressWhitelist,
-        Error::InvalidNewAddressWhitelist,
-    )
-    .unwrap_or_revert_with(Error::CannotGetWhitelistAddrressArg);
+    // // Take valid new_addresses from runtime args
+    // let new_addresses_whitelist = helpers::get_named_arg_with_user_errors::<Vec<Key>>(
+    //     ARG_NEW_ADDRESSES_WHITELIST,
+    //     Error::MissingNewAddressWhitelist,
+    //     Error::InvalidNewAddressWhitelist,
+    // )
+    // .unwrap_or_revert_with(Error::CannotGetWhitelistAddrressArg);
 
-    let is_whitelist = helpers::get_named_arg_with_user_errors::<bool>(
-        ARG_IS_WHITELIST,
-        Error::MissingNumberOfTickets,
-        Error::InvalidNumberOfTickets,
-    )
-    .unwrap_or_revert_with(Error::CannotGetNumberOfTickets);
+    // let is_whitelist = helpers::get_named_arg_with_user_errors::<bool>(
+    //     ARG_IS_WHITELIST,
+    //     Error::MissingNumberOfTickets,
+    //     Error::InvalidNumberOfTickets,
+    // )
+    // .unwrap_or_revert_with(Error::CannotGetNumberOfTickets);
 
-    let mut new_addresses: Vec<Key> = Vec::new();
-    // Get new address if valid.
-    for new_address in new_addresses_whitelist {
-        // Validate new_address is account type
-        if new_address.into_account().is_none() {
-            runtime::revert(Error::InputMustBeAccountHash);
-        }
-        let account_key = make_dictionary_item_key_for_account(new_address: Key);
-        // push new_address in array new_addresses
-        new_addresses.push(new_address.clone());
-    }
+    // let mut new_addresses: Vec<Key> = Vec::new();
+    // // Get new address if valid.
+    // for new_address in new_addresses_whitelist {
+    //     // Validate new_address is account type
+    //     if new_address.into_account().is_none() {
+    //         runtime::revert(Error::InputMustBeAccountHash);
+    //     }
+    //     let account_key = make_dictionary_item_key_for_account(new_address: Key);
+    //     // push new_address in array new_addresses
+    //     new_addresses.push(new_address.clone());
+    // }
 
-    // Add new_addresses into dictionary
+    // // Add new_addresses into dictionary
 
-    for new_address in new_addresses {
-        let account_key_1 = make_dictionary_item_key_for_account(new_address: Key);
+    // for new_address in new_addresses {
+    //     let account_key_1 = make_dictionary_item_key_for_account(new_address: Key);
 
-        write_dictionary_value_from_key(ADDRESSES_WHITELIST, &account_key_1, is_whitelist);
+    //     write_dictionary_value_from_key(ADDRESSES_WHITELIST, &account_key_1, is_whitelist);
 
-        write_dictionary_value_from_key(NFT_MINTED_NUMBER, &account_key_1, 0 as u8);
-    }
+    //     write_dictionary_value_from_key(NFT_MINTED_NUMBER, &account_key_1, 0 as u8);
+    // }
     Ok(())
 }
 
@@ -213,13 +261,6 @@ pub extern "C" fn mint() {
         runtime::revert(Error::CallerMustBeAccountHash);
     }
 
-    let nft_contract_package: Key = helpers::get_named_arg_with_user_errors::<Key>(
-        ARG_NFT_CONTRACT_PACKAGE,
-        Error::MissingNftContractPackage,
-        Error::InvalidNftContractPackage,
-    )
-    .unwrap_or_revert(); //Contract hash of NFT CASPERPUNK
-
     let count: u8 = helpers::get_named_arg_with_user_errors(
         "count",
         Error::MissingNftContractPackage,
@@ -229,13 +270,27 @@ pub extern "C" fn mint() {
 
     let nft_owner_key = make_dictionary_item_key_for_account(nft_owner: Key);
 
+    let is_round2_finished = is_round2_done();
+
+    let max_per_one_key = if is_round2_finished {
+        "max_per_one_r3"
+    } else {
+        "max_per_one"
+    };
+
     let max_per_one: u8 = helpers::get_stored_value_with_user_errors(
-        "max_per_one",
+        max_per_one_key,
         Error::InvalidContext,
         Error::InvalidContext,
     );
 
-    let nft_minted = match get_dictionary_value_from_key::<u8>(NFT_MINTED_NUMBER, &nft_owner_key) {
+    let NFT_MINTED_NUMBER_key = if is_round2_finished {
+        NFT_MINTED_NUMBER_R3
+    } else {
+        NFT_MINTED_NUMBER
+    };
+
+    let nft_minted = match get_dictionary_value_from_key::<u8>(NFT_MINTED_NUMBER_key, &nft_owner_key) {
         Some(minted) => minted as u8,
         None => 0u8,
     };
@@ -243,14 +298,25 @@ pub extern "C" fn mint() {
         runtime::revert(Error::ReachMaximumNumberOfMinting);
     }
 
+    let number_of_minted_box_key = if is_round2_finished {
+        "number_of_minted_box_r3"
+    } else {
+        "number_of_minted_box"
+    };
     let number_of_minted_box: u64 = helpers::get_stored_value_with_user_errors(
-        "number_of_minted_box",
+        number_of_minted_box_key,
         Error::InvalidContext,
         Error::InvalidContext,
     );
 
+    let total_box_key = if is_round2_finished {
+        "total_box_r3"
+    } else {
+        "total_box"
+    };
+
     let total_box: u64 = helpers::get_stored_value_with_user_errors(
-        "total_box",
+        total_box_key,
         Error::InvalidContext,
         Error::InvalidContext,
     );
@@ -258,7 +324,6 @@ pub extern "C" fn mint() {
     if number_of_minted_box + (count as u64) > total_box {
         runtime::revert(Error::InvalidContext);
     }
-    // Transfer_from cspr from user's purse to fee_receiver
 
     let fee_receiver: Key = helpers::get_stored_value_with_user_errors::<Key>(
         FEE_RECEIVER,
@@ -266,8 +331,14 @@ pub extern "C" fn mint() {
         Error::InvalidFeeReceiver,
     );
 
+    let mint_fee_key = if is_round2_finished {
+        MINT_FEE_R3
+    } else {
+        MINT_FEE
+    };
+
     let wcspr_mint_fee: U256 = helpers::get_stored_value_with_user_errors::<U256>(
-        MINT_FEE,
+        mint_fee_key,
         Error::MissingCsprMintFee,
         Error::InvalidCsprMintFee,
     );
@@ -297,23 +368,18 @@ pub extern "C" fn mint() {
     )
     .unwrap_or_revert_with(Error::CanNotTransferCSPR);
 
-    let token_metadata: String = helpers::get_named_arg_with_user_errors::<String>(
-        ARG_TOKEN_META_DATA,
-        Error::MissingTokenMetaData,
-        Error::InvalidTokenMetaData,
-    )
-    .unwrap_or_revert();
+    let nft_contract_package: Key = helpers::get_key(ARG_NFT_CONTRACT_PACKAGE).unwrap();
 
-    // TODO: CALL MINT function of CEP78
-    call_cep78_mint(&nft_contract_package, nft_owner, token_metadata, count);
-
+    call_cep78_mint(&nft_contract_package, nft_owner, count);
+    
     write_dictionary_value_from_key(
-        NFT_MINTED_NUMBER,
+        NFT_MINTED_NUMBER_key,
         &nft_owner_key,
         (nft_minted + count) as u8,
     );
+
     set_key(
-        "number_of_minted_box",
+        number_of_minted_box_key,
         number_of_minted_box + (count as u64),
     );
     events::emit(&FactoryEvent::MintFactory {
@@ -345,11 +411,26 @@ pub extern "C" fn change_mint_fee() -> Result<(), Error> {
     set_key(MINT_FEE, new_wcspr_mint_fee);
     Ok(())
 }
+
+#[no_mangle]
+pub extern "C" fn change_mint_fee_r3() -> Result<(), Error> {
+    only_owner();
+    let new_wcspr_mint_fee: U256 = runtime::get_named_arg(ARG_MINT_FEE_R3);
+    set_key(MINT_FEE_R3, new_wcspr_mint_fee);
+    Ok(())
+}
+
 #[no_mangle]
 pub extern "C" fn update_mint_params() {
     only_owner();
     let start_time: u64 = helpers::get_named_arg_with_user_errors(
         MINTING_START_TIME,
+        Error::MissingMintingStart,
+        Error::InvalidMintingStart,
+    )
+    .unwrap_or_revert();
+    let start_time_r3: u64 = helpers::get_named_arg_with_user_errors(
+        MINTING_START_TIME_R3,
         Error::MissingMintingStart,
         Error::InvalidMintingStart,
     )
@@ -368,14 +449,25 @@ pub extern "C" fn update_mint_params() {
     )
     .unwrap_or_revert();
 
+    let minting_price_r3: U256 = helpers::get_named_arg_with_user_errors(
+        MINT_FEE_R3,
+        Error::MissingCsprMintFee,
+        Error::InvalidCsprMintFee,
+    )
+    .unwrap_or_revert();
+
     helpers::set_key(MINTING_START_TIME, start_time);
+    helpers::set_key(MINTING_START_TIME_R3, start_time_r3);
     helpers::set_key(MINTING_END_TIME, end_time);
     helpers::set_key(MINT_FEE, minting_price);
+    helpers::set_key(MINT_FEE_R3, minting_price_r3);
 }
 
-fn call_cep78_mint(nft_contract_package: &Key, owner: Key, metadata: String, count: u8) {
+fn call_cep78_mint(nft_contract_package: &Key, owner: Key, count: u8) {
     let nft_contract_package_addr: HashAddr = nft_contract_package.into_hash().unwrap_or_revert();
     let nft_package_hash: ContractPackageHash = ContractPackageHash::new(nft_contract_package_addr);
+
+    let metadata: String = (r#"{"name":"CasperPunks Mystery Box","symbol":"MBOX","token_uri":"https://api-gen0.casperpunks.io/lootbox.png","checksum":"8cb33616573675fe4f9c24638f397b068a815ac0dd79d5e7c86ccf845d66f233"}"#).to_string();
 
     let _: () = runtime::call_versioned_contract(
         nft_package_hash,
@@ -387,17 +479,16 @@ fn call_cep78_mint(nft_contract_package: &Key, owner: Key, metadata: String, cou
             "number_of_boxs" => vec![count],
         },
     );
+}
 
-    // let contract_hash_addr: HashAddr = contract_hash.into_hash().unwrap_or_revert();
-    // let contract_hash: ContractHash = ContractHash::new(contract_hash_addr);
-    // let _: (String, Key, String) = runtime::call_contract(
-    //     contract_hash,
-    //     MINT_ENTRY_POINT_NAME,
-    //     runtime_args! {
-    //         ARG_TOKEN_OWNER => owner,
-    //         ARG_TOKEN_META_DATA => metadata,
-    //     },
-    // );
+fn is_round2_done() -> bool {
+    let start_time_r3: u64 = helpers::get_stored_value_with_user_errors(
+        MINTING_START_TIME_R3,
+        Error::MissingMintingStart,
+        Error::InvalidMintingStart,
+    );
+    let current_time_sec = helpers::current_block_timestamp_sec();
+    current_time_sec >= start_time_r3
 }
 
 pub fn minting_valid_time() {

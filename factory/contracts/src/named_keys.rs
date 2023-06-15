@@ -10,6 +10,7 @@ pub fn default(
     nft_factory_contract_name: String,
     contract_owner: Key,
     wcspr_mint_fee: U256,
+    wcspr_mint_fee_r3: U256,
     contract_package_hash: ContractPackageHash,
     fee_receiver : Key,
     fee_token: Option<Key>,
@@ -31,6 +32,11 @@ pub fn default(
     named_keys.insert(
         MINT_FEE.to_string(),
         storage::new_uref(wcspr_mint_fee).into(),
+    );
+
+    named_keys.insert(
+        MINT_FEE_R3.to_string(),
+        storage::new_uref(wcspr_mint_fee_r3).into(),
     );
 
     named_keys.insert(
