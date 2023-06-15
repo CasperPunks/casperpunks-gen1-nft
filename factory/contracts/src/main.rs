@@ -202,6 +202,7 @@ pub extern "C" fn set_addresses_whitelist() -> Result<(), Error> {
 // mint function of factory
 #[no_mangle]
 pub extern "C" fn mint() {
+    minting_valid_time();
     let nft_owner: Key = helpers::get_named_arg_with_user_errors(
         "token_owner",
         Error::MissingTokenMetaData,
