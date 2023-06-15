@@ -21,14 +21,14 @@ pub fn only_owner() {
     );
 }
 
-pub fn only_whitelisted(recipient: Key) {
-    let dict_key = utils::encode_dictionary_item_key(recipient);
-    let v = utils::get_dictionary_value_from_key::<bool>(WHITE_LIST_MAP, &dict_key);
-    utils::require(
-        v.is_some() && v.unwrap() == true,
-        NFTCoreError::NotWhitelisted,
-    );
-}
+// pub fn only_whitelisted(recipient: Key) {
+//     let dict_key = utils::encode_dictionary_item_key(recipient);
+//     let v = utils::get_dictionary_value_from_key::<bool>(WHITE_LIST_MAP, &dict_key);
+//     utils::require(
+//         v.is_some() && v.unwrap() == true,
+//         NFTCoreError::NotWhitelisted,
+//     );
+// }
 
 pub fn owner_internal() -> Key {
     let owner_key: Key = utils::get_stored_value_with_user_errors::<Key>(
@@ -46,134 +46,134 @@ pub extern "C" fn transfer_owner() {
     utils::set_key(THE_CONTRACT_OWNER, contract_owner);
 }
 
-#[no_mangle]
-pub extern "C" fn update_mint_params() {
-    only_owner();
-    let start_time: u64 = utils::get_named_arg_with_user_errors(
-        MINTING_START_TIME,
-        NFTCoreError::MissingMintingStart,
-        NFTCoreError::InvalidMintingStart,
-    )
-    .unwrap_or_revert();
-    let end_time: u64 = utils::get_named_arg_with_user_errors(
-        MINTING_END_TIME,
-        NFTCoreError::MissingMintingEnd,
-        NFTCoreError::InvalidMintingEnd,
-    )
-    .unwrap_or_revert();
+// #[no_mangle]
+// pub extern "C" fn update_mint_params() {
+//     only_owner();
+//     let start_time: u64 = utils::get_named_arg_with_user_errors(
+//         MINTING_START_TIME,
+//         NFTCoreError::MissingMintingStart,
+//         NFTCoreError::InvalidMintingStart,
+//     )
+//     .unwrap_or_revert();
+//     let end_time: u64 = utils::get_named_arg_with_user_errors(
+//         MINTING_END_TIME,
+//         NFTCoreError::MissingMintingEnd,
+//         NFTCoreError::InvalidMintingEnd,
+//     )
+//     .unwrap_or_revert();
 
-    let minting_price: U256 = utils::get_named_arg_with_user_errors(
-        MINTING_PRICE,
-        NFTCoreError::MissingMintingPrice,
-        NFTCoreError::InvalidMintingPrice,
-    )
-    .unwrap_or_revert();
+//     let minting_price: U256 = utils::get_named_arg_with_user_errors(
+//         MINTING_PRICE,
+//         NFTCoreError::MissingMintingPrice,
+//         NFTCoreError::InvalidMintingPrice,
+//     )
+//     .unwrap_or_revert();
 
-    utils::set_key(MINTING_START_TIME, start_time);
-    utils::set_key(MINTING_END_TIME, end_time);
-    utils::set_key(MINTING_PRICE, minting_price);
-}
+//     utils::set_key(MINTING_START_TIME, start_time);
+//     utils::set_key(MINTING_END_TIME, end_time);
+//     utils::set_key(MINTING_PRICE, minting_price);
+// }
 
-#[no_mangle]
-pub extern "C" fn set_whitelist() {
-    only_owner();
-    let users: Vec<Key> = runtime::get_named_arg(WHITELISTED_USERS);
-    for user in &users {
-        let dict_key = utils::encode_dictionary_item_key(user.clone());
-        utils::upsert_dictionary_value_from_key::<bool>(WHITE_LIST_MAP, &dict_key, true);
-    }
-}
+// #[no_mangle]
+// pub extern "C" fn set_whitelist() {
+//     only_owner();
+//     let users: Vec<Key> = runtime::get_named_arg(WHITELISTED_USERS);
+//     for user in &users {
+//         let dict_key = utils::encode_dictionary_item_key(user.clone());
+//         utils::upsert_dictionary_value_from_key::<bool>(WHITE_LIST_MAP, &dict_key, true);
+//     }
+// }
 
-pub fn minting_valid_time() {
-    let start_time: u64 = utils::get_stored_value_with_user_errors(
-        MINTING_START_TIME,
-        NFTCoreError::MissingMintingStart,
-        NFTCoreError::InvalidMintingStart,
-    );
-    let end_time: u64 = utils::get_stored_value_with_user_errors(
-        MINTING_END_TIME,
-        NFTCoreError::MissingMintingEnd,
-        NFTCoreError::InvalidMintingEnd,
-    );
-    let current_time_sec = utils::current_block_timestamp_sec();
-    utils::require(
-        start_time <= current_time_sec && current_time_sec <= end_time,
-        NFTCoreError::MintingTimeInvalid,
-    );
-}
+// pub fn minting_valid_time() {
+//     let start_time: u64 = utils::get_stored_value_with_user_errors(
+//         MINTING_START_TIME,
+//         NFTCoreError::MissingMintingStart,
+//         NFTCoreError::InvalidMintingStart,
+//     );
+//     let end_time: u64 = utils::get_stored_value_with_user_errors(
+//         MINTING_END_TIME,
+//         NFTCoreError::MissingMintingEnd,
+//         NFTCoreError::InvalidMintingEnd,
+//     );
+//     let current_time_sec = utils::current_block_timestamp_sec();
+//     utils::require(
+//         start_time <= current_time_sec && current_time_sec <= end_time,
+//         NFTCoreError::MintingTimeInvalid,
+//     );
+// }
 
-pub fn take_cspr_from_minting() {
-    let src_purse: URef = utils::get_named_arg_with_user_errors::<URef>(
-        ARG_SRC_PURSE,
-        NFTCoreError::MissingSrcPurse,
-        NFTCoreError::InvalidSrcPurse,
-    )
-    .unwrap_or_revert();
+// pub fn take_cspr_from_minting() {
+//     let src_purse: URef = utils::get_named_arg_with_user_errors::<URef>(
+//         ARG_SRC_PURSE,
+//         NFTCoreError::MissingSrcPurse,
+//         NFTCoreError::InvalidSrcPurse,
+//     )
+//     .unwrap_or_revert();
 
-    let price: U256 = utils::get_stored_value_with_user_errors(
-        MINTING_PRICE,
-        NFTCoreError::MissingMintingPrice,
-        NFTCoreError::InvalidMintingPrice,
-    );
-    let cspr_receiver: Key = utils::get_stored_value_with_user_errors(
-        CSPR_RECEIVER,
-        NFTCoreError::MissingCSPRReceiver,
-        NFTCoreError::InvalidCSPRReceiver,
-    );
-    let fee_receiver_pubkey = cspr_receiver.into_account().unwrap();
-    transfer_from_purse_to_account(src_purse, fee_receiver_pubkey, u256_to_u512(price), None)
-        .unwrap_or_revert_with(NFTCoreError::CanNotTransferCSPR);
-}
+//     let price: U256 = utils::get_stored_value_with_user_errors(
+//         MINTING_PRICE,
+//         NFTCoreError::MissingMintingPrice,
+//         NFTCoreError::InvalidMintingPrice,
+//     );
+//     let cspr_receiver: Key = utils::get_stored_value_with_user_errors(
+//         CSPR_RECEIVER,
+//         NFTCoreError::MissingCSPRReceiver,
+//         NFTCoreError::InvalidCSPRReceiver,
+//     );
+//     let fee_receiver_pubkey = cspr_receiver.into_account().unwrap();
+//     transfer_from_purse_to_account(src_purse, fee_receiver_pubkey, u256_to_u512(price), None)
+//         .unwrap_or_revert_with(NFTCoreError::CanNotTransferCSPR);
+// }
 
-pub fn minting_price_satisfied(provided_value: U256) {
-    let minting_price: U256 = utils::get_stored_value_with_user_errors(
-        MINTING_PRICE,
-        NFTCoreError::MissingMintingPrice,
-        NFTCoreError::InvalidMintingPrice,
-    );
-    utils::require(
-        minting_price <= provided_value,
-        NFTCoreError::MintingUnderPay,
-    );
-}
+// pub fn minting_price_satisfied(provided_value: U256) {
+//     let minting_price: U256 = utils::get_stored_value_with_user_errors(
+//         MINTING_PRICE,
+//         NFTCoreError::MissingMintingPrice,
+//         NFTCoreError::InvalidMintingPrice,
+//     );
+//     utils::require(
+//         minting_price <= provided_value,
+//         NFTCoreError::MintingUnderPay,
+//     );
+// }
 
 pub fn init(contract_owner: Key) {
     runtime::put_key(THE_CONTRACT_OWNER, storage::new_uref(contract_owner).into());
 
-    let end_time: u64 = utils::get_named_arg_with_user_errors(
-        MINTING_END_TIME,
-        NFTCoreError::MissingMintingEnd,
-        NFTCoreError::InvalidMintingEnd,
-    )
-    .unwrap_or_revert();
-    let start_time: u64 = utils::get_named_arg_with_user_errors(
-        MINTING_START_TIME,
-        NFTCoreError::MissingMintingStart,
-        NFTCoreError::InvalidMintingStart,
-    )
-    .unwrap_or_revert();
+    // let end_time: u64 = utils::get_named_arg_with_user_errors(
+    //     MINTING_END_TIME,
+    //     NFTCoreError::MissingMintingEnd,
+    //     NFTCoreError::InvalidMintingEnd,
+    // )
+    // .unwrap_or_revert();
+    // let start_time: u64 = utils::get_named_arg_with_user_errors(
+    //     MINTING_START_TIME,
+    //     NFTCoreError::MissingMintingStart,
+    //     NFTCoreError::InvalidMintingStart,
+    // )
+    // .unwrap_or_revert();
 
-    let minting_price: U256 = utils::get_named_arg_with_user_errors(
-        MINTING_PRICE,
-        NFTCoreError::MissingMintingPrice,
-        NFTCoreError::InvalidMintingPrice,
-    )
-    .unwrap_or_revert();
+    // let minting_price: U256 = utils::get_named_arg_with_user_errors(
+    //     MINTING_PRICE,
+    //     NFTCoreError::MissingMintingPrice,
+    //     NFTCoreError::InvalidMintingPrice,
+    // )
+    // .unwrap_or_revert();
 
-    let cspr_receiver: Key = utils::get_named_arg_with_user_errors(
-        CSPR_RECEIVER,
-        NFTCoreError::MissingCSPRReceiver,
-        NFTCoreError::InvalidCSPRReceiver,
-    )
-    .unwrap_or_revert();
+    // let cspr_receiver: Key = utils::get_named_arg_with_user_errors(
+    //     CSPR_RECEIVER,
+    //     NFTCoreError::MissingCSPRReceiver,
+    //     NFTCoreError::InvalidCSPRReceiver,
+    // )
+    // .unwrap_or_revert();
 
-    runtime::put_key(MINTING_START_TIME, storage::new_uref(start_time).into());
-    runtime::put_key(MINTING_END_TIME, storage::new_uref(end_time).into());
-    runtime::put_key(MINTING_PRICE, storage::new_uref(minting_price).into());
-    runtime::put_key(CSPR_RECEIVER, storage::new_uref(cspr_receiver).into());
+    // runtime::put_key(MINTING_START_TIME, storage::new_uref(start_time).into());
+    // runtime::put_key(MINTING_END_TIME, storage::new_uref(end_time).into());
+    // runtime::put_key(MINTING_PRICE, storage::new_uref(minting_price).into());
+    // runtime::put_key(CSPR_RECEIVER, storage::new_uref(cspr_receiver).into());
 
-    storage::new_dictionary(WHITE_LIST_MAP)
-        .unwrap_or_revert_with(NFTCoreError::FailedToCreateDictionary);
+    // storage::new_dictionary(WHITE_LIST_MAP)
+    //     .unwrap_or_revert_with(NFTCoreError::FailedToCreateDictionary);
 }
 
 pub fn entry_points() -> Vec<EntryPoint> {
@@ -185,19 +185,19 @@ pub fn entry_points() -> Vec<EntryPoint> {
             EntryPointAccess::Public,
             EntryPointType::Contract,
         ),
-        EntryPoint::new(
-            String::from("update_mint_params"),
-            vec![],
-            CLType::Unit,
-            EntryPointAccess::Public,
-            EntryPointType::Contract,
-        ),
-        EntryPoint::new(
-            String::from("set_whitelist"),
-            vec![],
-            CLType::Unit,
-            EntryPointAccess::Public,
-            EntryPointType::Contract,
-        ),
+        // EntryPoint::new(
+        //     String::from("update_mint_params"),
+        //     vec![],
+        //     CLType::Unit,
+        //     EntryPointAccess::Public,
+        //     EntryPointType::Contract,
+        // ),
+        // EntryPoint::new(
+        //     String::from("set_whitelist"),
+        //     vec![],
+        //     CLType::Unit,
+        //     EntryPointAccess::Public,
+        //     EntryPointType::Contract,
+        // ),
     ]
 }

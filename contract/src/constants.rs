@@ -36,6 +36,8 @@ pub const ARG_TOKEN_HASH: &str = "token_hash";
 pub const ARG_TOKEN_ID: &str = "token_id";
 pub const ARG_TOKEN_META_DATA: &str = "token_meta_data";
 pub const ARG_TOKEN_OWNER: &str = "token_owner";
+pub const ARG_TOKEN_OWNERS: &str = "token_owners";
+pub const ARG_NUMBER_OF_BOXS: &str = "number_of_boxs";
 pub const ARG_TOTAL_TOKEN_SUPPLY: &str = "total_token_supply";
 pub const ARG_WHITELIST_MODE: &str = "whitelist_mode";
 

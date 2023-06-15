@@ -174,7 +174,8 @@ pub enum NFTCoreError {
     NotWhitelisted = 169,
     MissingSrcPurse = 170,
     InvalidSrcPurse = 171,
-    CanNotTransferCSPR = 172
+    CanNotTransferCSPR = 172,
+    InvalidContext = 173,
 }
 
 impl From<NFTCoreError> for ApiError {
