@@ -239,7 +239,7 @@ pub extern "C" fn mint() {
         Some(minted) => minted as u8,
         None => 0u8,
     };
-    if nft_minted > max_per_one {
+    if nft_minted + count > max_per_one {
         runtime::revert(Error::ReachMaximumNumberOfMinting);
     }
 
