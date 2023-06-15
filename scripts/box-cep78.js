@@ -92,9 +92,7 @@ const CEP78 = class {
         this.contractClient.contractHash = this.contractHash
         this.contractClient.contractPackageHash = this.contractPackageHash
         this.contractClient.nodeAddress = this.nodeAddress
-        /* @ts-ignore */
         this.namedKeys = namedKeys;
-        console.log(this.namedKeys)
     }
 
     async identifierMode() {
@@ -188,21 +186,6 @@ const CEP78 = class {
         }
     }
 
-
-    async checkRegisterOwner(ownerAccountHash) {
-        try {
-            const itemKey = ownerAccountHash.toString();
-            const result = await utils.contractDictionaryGetter(
-                this.nodeAddress,
-                itemKey,
-                this.namedKeys.pageTable
-            );
-            return result;
-        } catch (e) {
-            throw e;
-        }
-    }
-
     async getOwnerOf(tokenId) {
         try {
             const itemKey = tokenId.toString();
@@ -290,6 +273,21 @@ const CEP78 = class {
         }
         return itemKey;
     }
+
+    async checkRegisterOwner(ownerAccountHash) {
+        try {
+            const itemKey = ownerAccountHash.toString();
+            const result = await utils.contractDictionaryGetter(
+                this.nodeAddress,
+                itemKey,
+                this.namedKeys.pageTable
+            );
+            return result;
+        } catch (e) {
+            throw e;
+        }
+    }
+
 
     async getOwnedTokens(account) {
         try {
@@ -569,7 +567,48 @@ const CEP78 = class {
         return await this.contractClient.contractCall({
             entryPoint: "mint",
             keys: keys,
-            paymentAmount: paymentAmount ? paymentAmount : "540000000000",
+            paymentAmount: paymentAmount ? paymentAmount : "80000000000",
+            runtimeArgs,
+            cb: (deployHash) => { },
+            ttl: ttl ? ttl : DEFAULT_TTL,
+        });
+    }
+
+    async setMinter({ keys, minter, paymentAmount, ttl }) {
+        let contractHash = new CLByteArray(
+            Uint8Array.from(Buffer.from(minter, "hex"))
+        );
+
+        const minterX = createRecipientAddress(contractHash)
+
+
+        let runtimeArgs = {};
+        runtimeArgs = RuntimeArgs.fromMap({
+            the_contract_minter: minterX,
+        });
+
+
+        return await this.contractClient.contractCall({
+            entryPoint: "change_minter",
+            keys: keys,
+            paymentAmount: paymentAmount ? paymentAmount : "10000000000",
+            runtimeArgs,
+            cb: (deployHash) => { },
+            ttl: ttl ? ttl : DEFAULT_TTL,
+        });
+    }
+
+    async setEnableTransfer({ keys, paymentAmount, ttl }) {
+
+        let runtimeArgs = {};
+        runtimeArgs = RuntimeArgs.fromMap({
+            enable_transfer: CLValueBuilder.bool(true),
+        });
+
+        return await this.contractClient.contractCall({
+            entryPoint: "set_enable_transfer",
+            keys: keys,
+            paymentAmount: paymentAmount ? paymentAmount : "10000000000",
             runtimeArgs,
             cb: (deployHash) => { },
             ttl: ttl ? ttl : DEFAULT_TTL,
@@ -857,7 +896,7 @@ const CEP78 = class {
 
 
     }
-    async transfer(keys, source, recipient, tokenId, paymentAmount, ttl) {
+    async transfer({ keys, source, recipient, tokenId, paymentAmount, ttl }) {
         let identifierMode = await this.identifierMode();
         identifierMode = parseInt(identifierMode.toString());
         let runtimeArgs = {};
@@ -878,7 +917,7 @@ const CEP78 = class {
         return await this.contractClient.contractCall({
             entryPoint: "transfer",
             keys: keys,
-            paymentAmount: paymentAmount ? paymentAmount : "1000000000",
+            paymentAmount: paymentAmount ? paymentAmount : "20000000000",
             runtimeArgs,
             cb: (deployHash) => { },
             ttl: ttl ? ttl : DEFAULT_TTL,

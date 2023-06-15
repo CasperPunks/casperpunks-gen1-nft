@@ -1,5 +1,8 @@
-import {
+require('dotenv').config()
+const fs = require('fs');
+const {
   DeployUtil,
+  Keys,
   CasperClient,
   RuntimeArgs,
   CLString,
@@ -12,34 +15,39 @@ import {
   CLByteArray,
   CLKey,
   CLValueBuilder,
-} from "casper-js-sdk";
-import * as utils from "./utils.js";
-import * as constants from "./constants";
-import { Some } from "ts-results";
-import * as Utils from "./indexC";
+} = require("casper-js-sdk");
+const Utils = require("./indexC.js");
 const {
+  utils,
   helpers,
   CasperContractClient,
 } = require("casper-js-client-helper");
-const { setClient, contractSimpleGetter, createRecipientAddress } = helpers;
+const { installContract, contractSimpleGetter, createRecipientAddress } = helpers;
+const { sleep, getDeploy } = require('./utils')
+let key = require('./keys.json').key
+const {
+  NODE_ADDRESS,
+  EVENT_STREAM_ADDRESS,
+  CHAIN_NAME,
+  WASM_PATH
+} = process.env
+let paymentAmount = '140000000000' //140
+let privateKeyPem = `
+-----BEGIN PRIVATE KEY-----
+${key}
+-----END PRIVATE KEY-----
+`
+
+let privateKeyBuffer = Keys.Ed25519.parsePrivateKey(Keys.Ed25519.readBase64WithPEM(privateKeyPem))
+let publicKey = Keys.Ed25519.privateToPublicKey(Uint8Array.from(privateKeyBuffer))
+let KEYS = new Keys.Ed25519.parseKeyPair(publicKey, Uint8Array.from(privateKeyBuffer))
+console.log('pubkey', KEYS.accountHex())
 
 
 const main = async () => {
-  //Step 1: Set casper node client
-  const client = new CasperClient(constants.DEPLOY_NODE_ADDRESS);
-
-  //Step 2: Set user key pair
-
-  const pairKeyView = utils.getKeyPairFromPrivateFile(  // ABB
-    constants.PATH_TO_PRIVATE_KEYS
-
-  );
-
-  //console.log("pairKeyView : ", pairKeyView)
-
 
   //   --session-arg "collection_name:string=''" \
-  const collection_name = new CLString("Mistery Box");
+  const collection_name = new CLString("Mystery Box");
   // --session-arg "collection_symbol:string=''" \
   const collection_symbol = new CLString("MBOX");
   // --session-arg "total_token_supply:u64='10'" \
@@ -83,7 +91,7 @@ const main = async () => {
   // --------------------
   //
   // --session-arg "holder_mode:opt_u8='2'" \
-  const holder_mode = new CLOption(Some(new CLU8(2)));
+  const holder_mode = new CLU8(2);
   //const holder_mode = new CLU8(2);
 
 
@@ -210,85 +218,65 @@ const main = async () => {
 
   //
   // EXP contract
-  let expContract = "30070685c86e7fb410839f1ffc86de2181d4776926248e0946350615929b1ce2"
-  const contractExpbytearray = new CLByteArray(Uint8Array.from(Buffer.from(expContract, 'hex')));
-  const EXPContract = new CLKey(contractExpbytearray);
+  let contract_minter = "6b85c486ab35bff046ac03d4558639b62fea3db0cfe1153eeb88bd1faca6f20e"
+  const contractExpbytearray = new CLByteArray(Uint8Array.from(Buffer.from(contract_minter, 'hex')));
+  const MinterContract = new CLKey(contractExpbytearray);
 
   // Fee
 
   let pathWasm = `./contract/target/wasm32-unknown-unknown/release/contract.wasm`;
-  let newPath = "./scripts/contract.wasm"
-  // let pathWasmOfficial = `../cep78New/cep-78-enhanced-nft/contract/target/wasm32-unknown-unknown/release/contract.wasm`;
 
-  let startMint = new CLU64("1680499659");
-  let endMint = new CLU64("1690499659");
-  let feeCSPR = new CLU256("10000000000");
-  console.log(pairKeyView.publicKey,
-    "casper-test",
-    constants.DEPLOY_GAS_PRICE,
-    constants.DEPLOY_TTL_MS)
-  console.log(startMint,
-    "minting_end_time", endMint,
-    "minting_price", feeCSPR,
-    "cspr_receiver", fee_receiver,
-    "the_contract_owner", csp_dev,
+
+  const runtimeArgs = RuntimeArgs.fromMap({
+    the_contract_owner: csp_dev,
+    collection_name: collection_name,
+    collection_symbol: collection_symbol,
+    total_token_supply: total_token_supply,
+    ownership_mode: ownership_mode,
+    nft_kind: nft_kind,
+    minting_mode: minting_mode,
+    holder_mode,
+    json_schema,
+    allow_minting,
+    nft_metadata_kind,
+    identifier_mode,
+    metadata_mutability,
+    owner_reverse_lookup_mode,
+    events_mode: events_mode,
+    the_contract_minter: MinterContract,
+  })
+  console.log(CHAIN_NAME,
+    NODE_ADDRESS,
+    KEYS,
+    runtimeArgs,
+    paymentAmount,
+    WASM_PATH
   )
+  // let newPath = "./scripts/contract.wasm"
+  // let pathWasmOfficial = `../cep78New/cep-78-enhanced-nft/contract/target/wasm32-unknown-unknown/release/contract.wasm`;
   console.log("DDDDD")
-  let deploy = DeployUtil.makeDeploy(
-    new DeployUtil.DeployParams(
-      pairKeyView.publicKey,
-      //"casper-net-1",
-      "casper-test",
-      constants.DEPLOY_GAS_PRICE,
-      constants.DEPLOY_TTL_MS
-    ),
-    DeployUtil.ExecutableDeployItem.newModuleBytes(
-      utils.getBinary(newPath),
-      RuntimeArgs.fromMap({
-        the_contract_owner: csp_dev,
-        collection_name: collection_name,
-        collection_symbol: collection_symbol,
-        total_token_supply: total_token_supply,
-        //csp_mint_fee,
-        // csp_dev: csp_dev,
-        // csp_minter: csp_minter,
-        ownership_mode: ownership_mode,
-        nft_kind: nft_kind,
-        minting_mode: minting_mode,
-        holder_mode,
-        json_schema,
-        allow_minting,
-        nft_metadata_kind,
-        identifier_mode,
-        metadata_mutability,
-        owner_reverse_lookup_mode,
-        events_mode: events_mode,
-        // minter: csp_minter,
-        // "minting_start_time": startMint,
-        // "minting_end_time": endMint,
-        // "minting_price": feeCSPR, //10 CPSR
-        // "cspr_receiver": fee_receiver,
-
-
-
-
-        // exp_contract: EXPContract,
-        // exp_package_hash: EXPContractHash,
-        // fee_change_name: new CLU256("1000000000"), //1000000000
-        // fee_change_stamina: new CLU256("1000000000"),
-        // fee_change_charisma: new CLU256("1000000000"),
-        // fee_change_intelligence: new CLU256("1000000000"),
-      })
-    ),
-    DeployUtil.standardPayment(300000000000) // 170 CSPR IS ENOUGH    165000000000
+  let hash = await installContract(
+    CHAIN_NAME,
+    NODE_ADDRESS,
+    KEYS,
+    runtimeArgs,
+    paymentAmount,
+    WASM_PATH
   );
-  deploy = client.signDeploy(deploy, pairKeyView);
+  console.log("B")
 
-  let deployHash = await client.putDeploy(deploy);
-  console.log(`deploy hash = ${deployHash}`);
+  console.log(`... Contract installation deployHash: ${hash}`)
 
-  let result = await Utils.getDeploy(constants.DEPLOY_NODE_ADDRESS, deployHash);
-  console.log("result: ", result)
+  await getDeploy(NODE_ADDRESS, hash)
+
+  let accountInfo = await utils.getAccountInfo(NODE_ADDRESS, KEYS.publicKey)
+
+  console.log(`... Contract installed successfully.`)
+
+  console.log(`... Account Info: `)
+  console.log(JSON.stringify(accountInfo, null, 2))
+  fs.writeFileSync('scripts/contractinfo.json', JSON.stringify(accountInfo, null, 2));
+
 
 };
 
