@@ -34,13 +34,6 @@ pub fn owner_internal() -> Key {
     owner_key
 }
 
-pub fn only_minter() {
-    utils::require(
-        minter_internal() == helpers::get_immediate_caller_key(),
-        NFTCoreError::OnlyOwner,
-    );
-}
-
 pub fn minter_internal() -> Key {
     let minter_key: Key = utils::get_stored_value_with_user_errors::<Key>(
         THE_CONTRACT_MINTER,
@@ -48,6 +41,19 @@ pub fn minter_internal() -> Key {
         NFTCoreError::InvalidContractOwner,
     );
     minter_key
+}
+
+pub fn only_active_transfer() {
+    utils::require(enable_transfer_internal() == true, NFTCoreError::OnlyOwner);
+}
+
+pub fn enable_transfer_internal() -> bool {
+    let transferable: bool = utils::get_stored_value_with_user_errors(
+        "enable_transfer",
+        NFTCoreError::MissingContractOwner,
+        NFTCoreError::InvalidContractOwner,
+    );
+    transferable
 }
 
 #[no_mangle]
@@ -69,6 +75,18 @@ pub extern "C" fn change_minter() {
     utils::set_key(THE_CONTRACT_MINTER, new_minter);
 }
 
+#[no_mangle]
+pub extern "C" fn set_enable_transfer() {
+    only_owner();
+    let transferable: bool = utils::get_named_arg_with_user_errors(
+        "enable_transfer",
+        NFTCoreError::MissingContractOwner,
+        NFTCoreError::InvalidContractOwner,
+    )
+    .unwrap_or_revert();
+    utils::set_key("enable_transfer", transferable);
+}
+
 pub fn init(contract_owner: Key) {
     runtime::put_key(THE_CONTRACT_OWNER, storage::new_uref(contract_owner).into());
     let contract_minter: Key = utils::get_named_arg_with_user_errors(
@@ -81,6 +99,7 @@ pub fn init(contract_owner: Key) {
         THE_CONTRACT_MINTER,
         storage::new_uref(contract_minter).into(),
     );
+    runtime::put_key("enable_transfer", storage::new_uref(false).into());
 }
 
 pub fn entry_points() -> Vec<EntryPoint> {
@@ -94,6 +113,13 @@ pub fn entry_points() -> Vec<EntryPoint> {
         ),
         EntryPoint::new(
             String::from("change_minter"),
+            vec![],
+            CLType::Unit,
+            EntryPointAccess::Public,
+            EntryPointType::Contract,
+        ),
+        EntryPoint::new(
+            String::from("set_enable_transfer"),
             vec![],
             CLType::Unit,
             EntryPointAccess::Public,

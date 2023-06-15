@@ -1033,6 +1033,7 @@ pub extern "C" fn is_approved_for_all() {
 // Assigned.
 #[no_mangle]
 pub extern "C" fn transfer() {
+    punk_lootbox::only_active_transfer();
     // If we are in minter or assigned mode we are not allowed to transfer ownership of token, hence
     // we revert.
     if let OwnershipMode::Minter | OwnershipMode::Assigned =
