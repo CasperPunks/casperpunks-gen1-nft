@@ -1,3 +1,6 @@
+# Casperpunks NFT
+The contract is a customization of the CEP-78 NFT standard.
+
 # CEP-78: Enhanced NFT standard
 
 ## Design Goals
