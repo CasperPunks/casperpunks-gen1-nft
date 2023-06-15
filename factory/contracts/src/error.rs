@@ -67,6 +67,12 @@ pub enum Error {
     MissingSrcPurse = 437,
     InvalidSrcPurse = 438,
     CanNotGetUserPurse = 439,
+    MissingMintingStart = 440,
+    InvalidMintingStart = 441,
+    MissingMintingEnd = 442,
+    InvalidMintingEnd = 443,
+    MintingTimeInvalid = 444,
+    OnlyOwner = 445,
 }
 
 impl From<Error> for ApiError {

@@ -35,6 +35,15 @@ fn change_mint_fee() -> EntryPoint {
         EntryPointType::Contract,
     )
 }
+fn update_mint_params() -> EntryPoint {
+    EntryPoint::new(
+        String::from(UPDATE_MINT_PARAMS_ENTRY_POINT_NAME),
+        vec![],
+        CLType::Unit,
+        EntryPointAccess::Public,
+        EntryPointType::Contract,
+    )
+}
 
 fn set_addresses_whitelist() -> EntryPoint {
     EntryPoint::new(
@@ -45,21 +54,6 @@ fn set_addresses_whitelist() -> EntryPoint {
                 CLType::List(Box::new(CLType::Key)),
             ),
             Parameter::new(ARG_IS_WHITELIST, CLType::Bool),
-        ],
-        CLType::String,
-        EntryPointAccess::Public,
-        EntryPointType::Contract,
-    )
-}
-fn update_addresses_whitelist() -> EntryPoint {
-    EntryPoint::new(
-        String::from(UPDATE_ADDRESSES_WHITELIST),
-        vec![
-            Parameter::new(
-                ARG_NEW_ADDRESSES_WHITELIST,
-                CLType::List(Box::new(CLType::Key)),
-            ),
-            Parameter::new(ARG_NUMBER_OF_TICKETS, CLType::U8),
         ],
         CLType::String,
         EntryPointAccess::Public,
@@ -99,7 +93,7 @@ pub(crate) fn default() -> EntryPoints {
     entry_points.add_entry_point(change_mint_fee());
     entry_points.add_entry_point(mint());
     entry_points.add_entry_point(set_addresses_whitelist());
-    entry_points.add_entry_point(update_addresses_whitelist());
+    entry_points.add_entry_point(update_mint_params());
     entry_points.add_entry_point(init());
     entry_points
 }

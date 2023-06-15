@@ -206,4 +206,5 @@ pub const FEE_RECEIVER: &str = "fee_receiver";
 pub const CHANGE_FEE_RECEIVER_ENTRY_POINT_NAME: &str = "change_fee_receiver";
 pub const CHANGE_WCSPR_CONTRACT_ENTRY_POINT_NAME: &str = "change_wcspr_contract";
 pub const CHANGE_MINT_FEE_ENTRY_POINT_NAME: &str = "change_mint_fee";
+pub const UPDATE_MINT_PARAMS_ENTRY_POINT_NAME: &str = "update_mint_params";
 pub const BOX_FACTORY_ACCESS: &str = "box_factory_access";

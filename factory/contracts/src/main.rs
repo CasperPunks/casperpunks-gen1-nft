@@ -16,39 +16,18 @@ mod helpers;
 pub mod named_keys;
 
 use crate::{constants::*, error::Error, helpers::*};
-use alloc::{
-    string::{String, ToString},
-    vec,
-    vec::*,
-};
+use alloc::{string::String, vec, vec::*};
 use casper_contract::{
-    contract_api::{
-        account, runtime, storage,
-        system::{self, transfer_from_purse_to_account, transfer_from_purse_to_purse},
-    },
+    contract_api::{runtime, storage, system::transfer_from_purse_to_account},
     unwrap_or_revert::UnwrapOrRevert,
 };
 use casper_types::{
-    bytesrepr::{FromBytes, ToBytes},
-    contracts::NamedKeys,
-    runtime_args, CLTyped, ContractHash, ContractPackageHash, HashAddr, Key, RuntimeArgs, URef,
-    U256,
+    contracts::NamedKeys, runtime_args, ContractPackageHash, HashAddr, Key, RuntimeArgs, URef, U256,
 };
 use events::FactoryEvent;
-use helpers::{get_immediate_caller_key, get_self_key};
-use serde::{Deserialize, Serialize};
-#[derive(Serialize, Deserialize, Clone)]
-pub(crate) struct RequestMint {
-    nft_contract_package: Key,
-    nft_owner_hash: String,
-    request_id: String,
-    request_index: U256,
-    metadata: String,
-}
 
 pub const MINTING_START_TIME: &str = "minting_start_time";
 pub const MINTING_END_TIME: &str = "minting_end_time";
-pub const MINTING_PRICE: &str = "minting_price";
 
 #[no_mangle]
 pub extern "C" fn init() {
@@ -58,11 +37,21 @@ pub extern "C" fn init() {
     let contract_hash: Key = runtime::get_named_arg(ARG_CONTRACT_HASH);
     let total_box: u64 = runtime::get_named_arg("total_box");
     let max_per_one: u8 = runtime::get_named_arg("max_per_one");
+    let start_time: u64 = runtime::get_named_arg("minting_start_time");
+    let end_time: u64 = runtime::get_named_arg("minting_end_time");
 
     set_key(CONTRACT_HASH_KEY_NAME, contract_hash);
     runtime::put_key("total_box", storage::new_uref(total_box as u64).into());
     runtime::put_key("max_per_one", storage::new_uref(max_per_one as u8).into());
     runtime::put_key("number_of_minted_box", storage::new_uref(0 as u64).into());
+    runtime::put_key(
+        "minting_start_time",
+        storage::new_uref(start_time as u64).into(),
+    );
+    runtime::put_key(
+        "minting_end_time",
+        storage::new_uref(end_time as u64).into(),
+    );
 
     storage::new_dictionary(ADDRESSES_WHITELIST)
         .unwrap_or_revert_with(Error::FailedToCreateDictionary);
@@ -86,6 +75,18 @@ fn call() {
         ARG_FEE_RECEIVER,
         Error::MissingFeeReceiver,
         Error::InvalidFeeReceiver,
+    )
+    .unwrap_or_revert();
+    let start_time: u64 = helpers::get_named_arg_with_user_errors(
+        MINTING_START_TIME,
+        Error::MissingMintingStart,
+        Error::InvalidMintingStart,
+    )
+    .unwrap_or_revert();
+    let end_time: u64 = helpers::get_named_arg_with_user_errors(
+        MINTING_END_TIME,
+        Error::MissingMintingEnd,
+        Error::InvalidMintingEnd,
     )
     .unwrap_or_revert();
 
@@ -148,6 +149,8 @@ fn call() {
             "contract_hash" => Key::from(contract_hash),
             "total_box" => total_box,
             "max_per_one" => max_per_one,
+            "minting_start_time" => start_time,
+            "minting_end_time" => end_time,
         },
     );
 }
@@ -155,16 +158,7 @@ fn call() {
 #[no_mangle]
 pub extern "C" fn set_addresses_whitelist() -> Result<(), Error> {
     // Check caller must be DEV account
-    let caller = get_immediate_caller_key();
-    let current_owner = helpers::get_stored_value_with_user_errors::<Key>(
-        CONTRACT_OWNER_KEY_NAME,
-        Error::MissingContractOwner,
-        Error::InvalidContractOwner,
-    );
-
-    if caller != current_owner {
-        runtime::revert(Error::InvalidContractOwner);
-    }
+    only_owner();
 
     // Take valid new_addresses from runtime args
     let new_addresses_whitelist = helpers::get_named_arg_with_user_errors::<Vec<Key>>(
@@ -205,55 +199,6 @@ pub extern "C" fn set_addresses_whitelist() -> Result<(), Error> {
     Ok(())
 }
 
-#[no_mangle]
-pub extern "C" fn update_addresses_whitelist() -> Result<(), Error> {
-    let caller = get_immediate_caller_key();
-    let current_owner = helpers::get_stored_value_with_user_errors::<Key>(
-        CONTRACT_OWNER_KEY_NAME,
-        Error::MissingContractOwner,
-        Error::InvalidContractOwner,
-    );
-
-    if caller != current_owner {
-        runtime::revert(Error::InvalidContractOwner);
-    }
-
-    // Take valid new_addresses from runtime args
-    let new_addresses_whitelist = helpers::get_named_arg_with_user_errors::<Vec<Key>>(
-        ARG_NEW_ADDRESSES_WHITELIST,
-        Error::MissingNewAddressWhitelist,
-        Error::InvalidNewAddressWhitelist,
-    )
-    .unwrap_or_revert_with(Error::CannotGetWhitelistAddrressArg);
-
-    let number_of_tickets = helpers::get_named_arg_with_user_errors::<u8>(
-        ARG_NUMBER_OF_TICKETS,
-        Error::MissingNumberOfTickets,
-        Error::InvalidNumberOfTickets,
-    )
-    .unwrap_or_revert_with(Error::CannotGetNumberOfTickets);
-
-    let mut new_addresses: Vec<Key> = Vec::new();
-    // Get new address if valid.
-    for new_address in new_addresses_whitelist {
-        // Validate new_address is account type
-        if new_address.into_account().is_none() {
-            runtime::revert(Error::InputMustBeAccountHash);
-        }
-        // push new_address in array new_addresses
-        new_addresses.push(new_address.clone());
-    }
-
-    // Add new_addresses into dictionary
-
-    for new_address in new_addresses {
-        let account_key_1 = make_dictionary_item_key_for_account(new_address: Key);
-
-        write_dictionary_value_from_key(ADDRESSES_WHITELIST, &account_key_1, number_of_tickets);
-    }
-    Ok(())
-}
-
 // mint function of factory
 #[no_mangle]
 pub extern "C" fn mint() {
@@ -282,15 +227,6 @@ pub extern "C" fn mint() {
     .unwrap_or_revert();
 
     let nft_owner_key = make_dictionary_item_key_for_account(nft_owner: Key);
-
-    // Check if new_address already in dictionary
-    // let is_wl = get_dictionary_value_from_key::<bool>(ADDRESSES_WHITELIST,
-    // &nft_owner_key).unwrap(); if is_wl != true {
-    //     runtime::revert(Error::InvalidContext);
-    // }
-    // if get_dictionary_value_from_key::<u8>(NFT_MINTED_NUMBER, &nft_owner_key).is_none() {
-    //     runtime::revert(Error::InvalidWhiteListAddress);
-    // }
 
     let max_per_one: u8 = helpers::get_stored_value_with_user_errors(
         "max_per_one",
@@ -387,71 +323,55 @@ pub extern "C" fn mint() {
 
 #[no_mangle]
 pub extern "C" fn transfer_owner() -> Result<(), Error> {
+    only_owner();
     let new_contract_owner: Key = runtime::get_named_arg(ARG_CONTRACT_OWNER);
-    let caller = helpers::get_verified_caller().unwrap_or_revert();
-    let current_contract_owner = helpers::get_stored_value_with_user_errors::<Key>(
-        CONTRACT_OWNER_KEY_NAME,
-        Error::MissingContractOwner,
-        Error::InvalidContractOwner,
-    );
-
-    if caller != current_contract_owner {
-        runtime::revert(Error::InvalidContractOwner);
-    }
     set_key(CONTRACT_OWNER_KEY_NAME, new_contract_owner);
     Ok(())
 }
 
 #[no_mangle]
 pub extern "C" fn change_fee_receiver() -> Result<(), Error> {
+    only_owner();
     let new_fee_receiver: Key = runtime::get_named_arg(ARG_FEE_RECEIVER);
-    let caller = helpers::get_verified_caller().unwrap_or_revert();
-    let current_contract_owner = helpers::get_stored_value_with_user_errors::<Key>(
-        CONTRACT_OWNER_KEY_NAME,
-        Error::MissingContractOwner,
-        Error::InvalidContractOwner,
-    );
-
-    if caller != current_contract_owner {
-        runtime::revert(Error::InvalidContractOwner);
-    }
     set_key(FEE_RECEIVER, new_fee_receiver);
     Ok(())
 }
 
 #[no_mangle]
-pub extern "C" fn change_wcspr_contract() -> Result<(), Error> {
-    let new_wcspr_contract: Key = runtime::get_named_arg(ARG_WCSPR_CONTRACT);
-    let caller = helpers::get_verified_caller().unwrap_or_revert();
-    let current_contract_owner = helpers::get_stored_value_with_user_errors::<Key>(
-        CONTRACT_OWNER_KEY_NAME,
-        Error::MissingContractOwner,
-        Error::InvalidContractOwner,
-    );
-
-    if caller != current_contract_owner {
-        runtime::revert(Error::InvalidContractOwner);
-    }
-    set_key(WCSPR_CONTRACT, new_wcspr_contract);
-    Ok(())
-}
-
-#[no_mangle]
 pub extern "C" fn change_mint_fee() -> Result<(), Error> {
+    only_owner();
     let new_wcspr_mint_fee: U256 = runtime::get_named_arg(ARG_MINT_FEE);
-    let caller = helpers::get_verified_caller().unwrap_or_revert();
-    let current_contract_owner = helpers::get_stored_value_with_user_errors::<Key>(
-        CONTRACT_OWNER_KEY_NAME,
-        Error::MissingContractOwner,
-        Error::InvalidContractOwner,
-    );
-
-    if caller != current_contract_owner {
-        runtime::revert(Error::InvalidContractOwner);
-    }
     set_key(MINT_FEE, new_wcspr_mint_fee);
     Ok(())
 }
+#[no_mangle]
+pub extern "C" fn update_mint_params() {
+    only_owner();
+    let start_time: u64 = helpers::get_named_arg_with_user_errors(
+        MINTING_START_TIME,
+        Error::MissingMintingStart,
+        Error::InvalidMintingStart,
+    )
+    .unwrap_or_revert();
+    let end_time: u64 = helpers::get_named_arg_with_user_errors(
+        MINTING_END_TIME,
+        Error::MissingMintingEnd,
+        Error::InvalidMintingEnd,
+    )
+    .unwrap_or_revert();
+
+    let minting_price: U256 = helpers::get_named_arg_with_user_errors(
+        MINT_FEE,
+        Error::MissingCsprMintFee,
+        Error::InvalidCsprMintFee,
+    )
+    .unwrap_or_revert();
+
+    helpers::set_key(MINTING_START_TIME, start_time);
+    helpers::set_key(MINTING_END_TIME, end_time);
+    helpers::set_key(MINT_FEE, minting_price);
+}
+
 fn call_cep78_mint(nft_contract_package: &Key, owner: Key, metadata: String, count: u8) {
     let nft_contract_package_addr: HashAddr = nft_contract_package.into_hash().unwrap_or_revert();
     let nft_package_hash: ContractPackageHash = ContractPackageHash::new(nft_contract_package_addr);
@@ -479,20 +399,35 @@ fn call_cep78_mint(nft_contract_package: &Key, owner: Key, metadata: String, cou
     // );
 }
 
-// pub fn minting_valid_time() {
-//     let start_time: u64 = helpers::get_stored_value_with_user_errors(
-//         MINTING_START_TIME,
-//         NFTCoreError::MissingMintingStart,
-//         NFTCoreError::InvalidMintingStart,
-//     );
-//     let end_time: u64 = helpers::get_stored_value_with_user_errors(
-//         MINTING_END_TIME,
-//         NFTCoreError::MissingMintingEnd,
-//         NFTCoreError::InvalidMintingEnd,
-//     );
-//     let current_time_sec = helpers::current_block_timestamp_sec();
-//     helpers::require(
-//         start_time <= current_time_sec && current_time_sec <= end_time,
-//         NFTCoreError::MintingTimeInvalid,
-//     );
-// }
+pub fn minting_valid_time() {
+    let start_time: u64 = helpers::get_stored_value_with_user_errors(
+        MINTING_START_TIME,
+        Error::MissingMintingStart,
+        Error::InvalidMintingStart,
+    );
+    let end_time: u64 = helpers::get_stored_value_with_user_errors(
+        MINTING_END_TIME,
+        Error::MissingMintingEnd,
+        Error::InvalidMintingEnd,
+    );
+    let current_time_sec = helpers::current_block_timestamp_sec();
+    helpers::require(
+        start_time <= current_time_sec && current_time_sec <= end_time,
+        Error::MintingTimeInvalid,
+    );
+}
+pub fn only_owner() {
+    helpers::require(
+        owner_internal() == helpers::get_verified_caller().unwrap_or_revert(),
+        Error::OnlyOwner,
+    );
+}
+
+pub fn owner_internal() -> Key {
+    let owner_key: Key = helpers::get_stored_value_with_user_errors::<Key>(
+        CONTRACT_OWNER_KEY_NAME,
+        Error::MissingContractOwner,
+        Error::InvalidContractOwner,
+    );
+    owner_key
+}
