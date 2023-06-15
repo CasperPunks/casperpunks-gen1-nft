@@ -5,7 +5,10 @@ prepare:
 	rustup component add clippy --toolchain ${PINNED_TOOLCHAIN}
 	rustup component add rustfmt --toolchain ${PINNED_TOOLCHAIN}
 
-build-contract:
+build-payment-contract:
+	cd payment-contract && make build-contract
+
+build-contract: build-payment-contract
 	cd contract && cargo build --release --target wasm32-unknown-unknown
 	cd client/mint_session && cargo build --release --target wasm32-unknown-unknown
 	cd client/balance_of_session && cargo build --release --target wasm32-unknown-unknown
@@ -26,7 +29,7 @@ build-contract:
 	wasm-strip client/updated_receipts/target/wasm32-unknown-unknown/release/updated_receipts.wasm
 	wasm-strip test-contracts/minting_contract/target/wasm32-unknown-unknown/release/minting_contract.wasm
 
-setup-test: build-contract
+setup-test: build-contract build-payment-contract
 	mkdir -p tests/wasm
 	mkdir -p tests/wasm/1_0_0; curl -L https://github.com/casper-ecosystem/cep-78-enhanced-nft/releases/download/v1.0.0/cep-78-wasm.tar.gz | tar zxv -C tests/wasm/1_0_0/
 	mkdir -p tests/wasm/1_1_0; curl -L https://github.com/casper-ecosystem/cep-78-enhanced-nft/releases/download/v1.1.0/cep-78-wasm.tar.gz | tar zxv -C tests/wasm/1_1_0/
