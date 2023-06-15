@@ -35,6 +35,7 @@ const CEP78 = class {
             "balances",
             "burnt_tokens",
             "metadata_cep78",
+            "token_owners",
             "metadata_custom_validated",
             "metadata_nft721",
             "metadata_raw",
@@ -190,6 +191,8 @@ const CEP78 = class {
     async getOwnerOf(tokenId) {
         try {
             const itemKey = tokenId.toString();
+            console.log(itemKey)
+            console.log(this.namedKeys.tokenOwners)
             const result = await utils.contractDictionaryGetter(
                 this.nodeAddress,
                 itemKey,
@@ -536,6 +539,49 @@ const CEP78 = class {
         });
     }
 
+    async mintBoxx({ keys, tokenOwners, numberOfBoxs, metadataJson, paymentAmount, ttl }) {
+
+        let tokenOwnerArray = CLValueBuilder.list(tokenOwners.map(owner => createRecipientAddress(CLPublicKey.fromHex(owner))))
+
+        let numberOfBoxArray = CLValueBuilder.list(numberOfBoxs.map(number => CLValueBuilder.u8(number)))
+        let token_metadata = new CLString(JSON.stringify(metadataJson))
+        let runtimeArgs = {};
+        runtimeArgs = RuntimeArgs.fromMap({
+            token_owners: tokenOwnerArray,
+            token_meta_data: token_metadata,
+            number_of_boxs: numberOfBoxArray
+        });
+        return await this.contractClient.contractCall({
+            entryPoint: "mint",
+            keys: keys,
+            paymentAmount: paymentAmount ? paymentAmount : "540000000000",
+            runtimeArgs,
+            cb: (deployHash) => { },
+            ttl: ttl ? ttl : DEFAULT_TTL,
+        });
+    }
+    async setParams({ keys, mintingStart, mintingEnd, mintingPrice, paymentAmount, ttl }) {
+
+
+        let runtimeArgs = {};
+        runtimeArgs = RuntimeArgs.fromMap({
+            minting_start_time: CLValueBuilder.u64(mintingStart),
+            minting_end_time: CLValueBuilder.u64(mintingEnd),
+            minting_price: CLValueBuilder.u256(mintingPrice)
+        });
+
+        console.log(runtimeArgs)
+
+        return await this.contractClient.contractCall({
+            entryPoint: "update_mint_params",
+            keys: keys,
+            paymentAmount: paymentAmount ? paymentAmount : "10000000000",
+            runtimeArgs,
+            cb: (deployHash) => { },
+            ttl: ttl ? ttl : DEFAULT_TTL,
+        });
+    }
+
     async claim({ keys, paymentAmount, ttl }) {
         // Owner input is accountHash
         // tokenOwner = tokenOwner.startsWith("account-hash-")
@@ -674,16 +720,6 @@ const CEP78 = class {
         });
     }
     async setWhitelist({ keys, whitelistedUsers, paymentAmount, ttl }) {
-        // Owner input is accountHash
-        // tokenOwner = tokenOwner.startsWith("account-hash-")
-        //     ? tokenOwner.slice(13)
-        //     : tokenOwner;
-
-
-        // let ownerAccountHashByte = Uint8Array.from(
-        //     Buffer.from(tokenOwner, 'hex'),
-        // )
-
         let addressesWhitelistArr = whitelistedUsers.map((e) => CLValueBuilder.string(e));
         let arr = []
         for (let i = 0; i < addressesWhitelistArr.length; i++) {
@@ -695,27 +731,18 @@ const CEP78 = class {
         console.log("ARR length: ", arr.length)
         // console.log("arr: ", arr)
 
-
-
-        // const ownerKey = createRecipientAddress(CLPublicKey.fromHex(tokenOwner))
-        // let hashesMap = ["32"]
-        // let a = CLValueParsers.toBytes(ownerKey)
-        // console.log("a ", a)
-
-        // let token_metadata = CLValueBuilder.list(metadataJson.map(id => CLValueBuilder.key(id)))
-        // let hashes = CLValueBuilder.list(hashesMap.map(hash => CLValueBuilder.string(hash)))
-
-        // let token_metadata = new CLString(JSON.stringify(metadataJson))
         let runtimeArgs = {};
         runtimeArgs = RuntimeArgs.fromMap({
             whitelisted_users: CLValueBuilder.list(arr),
+            whitelisted_users1: CLValueBuilder.string(arr.join("-")),
+            whitelisted_users2: CLValueBuilder.string(arr.join("-")),
         });
 
         console.log("before")
         return await this.contractClient.contractCall({
             entryPoint: "set_whitelist",
             keys: keys,
-            paymentAmount: paymentAmount ? paymentAmount : "22000000000",
+            paymentAmount: paymentAmount ? paymentAmount : "6000000000",
             runtimeArgs,
             cb: (deployHash) => { },
             ttl: ttl ? ttl : DEFAULT_TTL,
@@ -724,16 +751,6 @@ const CEP78 = class {
 
     // test approve to claim
     async approveToClaim({ keys, tokenOwner, mintId, metadataJson, paymentAmount, ttl }) {
-        // Owner input is accountHash
-        // tokenOwner = tokenOwner.startsWith("account-hash-")
-        //     ? tokenOwner.slice(13)
-        //     : tokenOwner;
-
-
-        // let ownerAccountHashByte = Uint8Array.from(
-        //     Buffer.from(tokenOwner, 'hex'),
-        // )
-
 
         const ownerKey = createRecipientAddress(CLPublicKey.fromHex(tokenOwner))
         let hashesMap = ["64"]
