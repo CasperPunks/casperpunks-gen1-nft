@@ -4,13 +4,8 @@
 extern crate alloc;
 mod error;
 
-use contract::{
-    contract_api::{runtime}
-};
-use types::{
-    runtime_args, ContractPackageHash, Key,
-    RuntimeArgs, URef
-};
+use contract::contract_api::runtime;
+use types::{runtime_args, ContractPackageHash, Key, RuntimeArgs, URef};
 
 #[no_mangle]
 pub extern "C" fn call() {
@@ -25,10 +20,10 @@ pub extern "C" fn call() {
         "register_owner",
         runtime_args! {
             "token_owner" => target_key
-        }
+        },
     );
 
-    for token_id in &token_ids {
+    for token_id in token_ids {
         let _: (String, Key) = runtime::call_versioned_contract(
             ContractPackageHash::new(nft_package_hash.into_hash().unwrap()),
             None,
@@ -36,8 +31,8 @@ pub extern "C" fn call() {
             runtime_args! {
                 "source_key" => source_key,
                 "target_key" => target_key,
-                "token_id" => token_id.clone()
-            }
+                "token_id" => token_id
+            },
         );
-    }    
+    }
 }

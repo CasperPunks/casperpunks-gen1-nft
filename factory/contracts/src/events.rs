@@ -5,16 +5,12 @@
 // use std::collections::BTreeMap;
 extern crate alloc;
 use alloc::{
+    collections::BTreeMap,
     string::{String, ToString},
-    vec::{self, *},
-    collections::BTreeMap
+    vec::*,
 };
-
-use casper_contract::contract_api::{
-    storage,
-    runtime,
-};
-use casper_types::{account::AccountHash, ContractPackageHash, Key, URef, U256,HashAddr, };
+use casper_contract::contract_api::storage;
+use casper_types::{account::AccountHash, ContractPackageHash, Key, URef, U256};
 
 use crate::helpers::get_key;
 
@@ -31,8 +27,7 @@ pub enum FactoryEvent {
     },
     MintFactory {
         owner: Key,
-        minted: u8
-        // token_id: u8,
+        minted: u8,
     },
     Withdrawal {
         cspr_recipient: AccountHash,
@@ -72,18 +67,8 @@ pub fn contract_package_hash() -> ContractPackageHash {
     get_key::<ContractPackageHash>("contract_package_hash").unwrap()
 }
 
-// pub(crate) fn contract_package_hash() -> ContractPackageHash {
-//     let key : Key = runtime::get_key("contract_package_hash").unwrap();
-//     let contract_package_hash_addr: HashAddr = key.into_hash().unwrap();
-//     let factory_package_hash: ContractPackageHash = ContractPackageHash::new(contract_package_hash_addr);
-//     factory_package_hash
-
-// }
-
-
 pub(crate) fn emit(pair_event: &FactoryEvent) {
     let mut events = Vec::new();
-    // let package : ContractPackageHash = runtime::get_key("contract_package_hash").into_hash().unwrap_or_revert();
     let package = contract_package_hash();
     match pair_event {
         FactoryEvent::Approval {

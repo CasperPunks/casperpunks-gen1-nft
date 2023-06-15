@@ -1,8 +1,8 @@
 [package]
-name = "payment-contract"
+name = "payment-contract-factory"
 description = "A generic payment contract"
 version = "0.1.0"
-authors = ["FriendlyMarket <team@friendly.market>"]
+authors = ["Degalabs <degalabs.io>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -13,7 +13,7 @@ types = { package = "casper-types", version="=1.4.5" }
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "payment_contract"
+name = "payment_contract_factory"
 
 [features]
 default = ["contract/std", "types/std"]

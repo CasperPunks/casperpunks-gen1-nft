@@ -56,7 +56,8 @@ pub enum Error {
     Locked,
     /// Calling Pair's swap operation while `to` is one of the pair's tokens addresses.
     InvalidTo,
-    /// In Pair's swap(): When the pair tokens' balances product is inferior than the reserves product multiplied by 1000^2.
+    /// In Pair's swap(): When the pair tokens' balances product is inferior than the reserves
+    /// product multiplied by 1000^2.
     K,
     /// The given signature for permit() is erronous.
     InvalidSignature,

@@ -18,11 +18,12 @@ pub mod named_keys;
 use crate::{constants::*, error::Error, helpers::*};
 use alloc::{string::String, vec::*};
 use casper_contract::{
-    contract_api::{runtime, storage },
-    unwrap_or_revert::UnwrapOrRevert
+    contract_api::{runtime, storage},
+    unwrap_or_revert::UnwrapOrRevert,
 };
 use casper_types::{
-    contracts::NamedKeys, runtime_args, ContractPackageHash, HashAddr, Key, RuntimeArgs, PublicKey, AsymmetricType
+    contracts::NamedKeys, runtime_args, AsymmetricType, ContractPackageHash, HashAddr, Key,
+    PublicKey, RuntimeArgs,
 };
 
 #[no_mangle]
@@ -60,18 +61,21 @@ fn call() {
     .unwrap_or_revert();
 
     let (contract_package_hash, _) = storage::create_contract_package_at_hash();
-    let named_keys: NamedKeys = named_keys::default(
-        contract_name.clone(),
-        contract_owner,
-        contract_package_hash
-    );
+    let named_keys: NamedKeys =
+        named_keys::default(contract_name.clone(), contract_owner, contract_package_hash);
 
     // Add new version to the package.
     let (contract_hash, _) =
         storage::add_contract_version(contract_package_hash, entry_points::default(), named_keys);
 
-    set_key(&(contract_name.clone().to_string() + "-contract-hash"), Key::from(contract_hash));
-    set_key(&(contract_name.clone().to_string() + "-contract-package-hash"), Key::from(contract_package_hash));
+    set_key(
+        &(contract_name.to_string() + "-contract-hash"),
+        Key::from(contract_hash),
+    );
+    set_key(
+        &(contract_name + "-contract-package-hash"),
+        Key::from(contract_package_hash),
+    );
 
     runtime::call_contract::<()>(
         contract_hash,
@@ -98,7 +102,9 @@ pub extern "C" fn redeem() {
     let caller = helpers::get_immediate_caller_key();
 
     // burn it
-    let burner_pubkey = PublicKey::from_hex("020311111111111111111111111111111111111111111111111111111111deadbeef").unwrap();
+    let burner_pubkey =
+        PublicKey::from_hex("020311111111111111111111111111111111111111111111111111111111deadbeef")
+            .unwrap();
     let burner_account_hash = burner_pubkey.to_account_hash();
     let burner = Key::from(burner_account_hash);
     let box_package_hash: Key = get_key("box_package_hash").unwrap();
@@ -119,15 +125,19 @@ fn transfer_from_nft(nft_package_hash: Key, from: Key, to: Key, token_id: u64) {
         "token_id" => token_id
     };
 
-    let _: (String, Key) = runtime::call_versioned_contract(ContractPackageHash::new(nft_package_hash.into_hash().unwrap()), None, "transfer", rt);
+    let _: (String, Key) = runtime::call_versioned_contract(
+        ContractPackageHash::new(nft_package_hash.into_hash().unwrap()),
+        None,
+        "transfer",
+        rt,
+    );
 }
 
 #[no_mangle]
-pub extern "C" fn transfer_owner() -> Result<(), Error> {
+pub extern "C" fn transfer_owner() {
     only_owner();
     let new_contract_owner: Key = runtime::get_named_arg(ARG_CONTRACT_OWNER);
     set_key(CONTRACT_OWNER_KEY_NAME, new_contract_owner);
-    Ok(())
 }
 
 fn call_cep78_mint(nft_contract_package: &Key, owner: Key, count: u64) {

@@ -5,10 +5,25 @@ prepare:
 	rustup component add clippy --toolchain ${PINNED_TOOLCHAIN}
 	rustup component add rustfmt --toolchain ${PINNED_TOOLCHAIN}
 
+build-cep78-transfer-session:
+	cd cep78-transfer-session && make build-contract
+
 build-payment-contract:
 	cd payment-contract && make build-contract
 
-build-contract: build-payment-contract
+build-payment-contract-factory:
+	cd payment-contract-factory && make build-contract
+
+build-factory:
+	cd factory && make build-contract
+
+build-redeem-box:
+	cd redeem-box && make build-contract
+
+build-redeem-session:
+	cd redeem-session && make build-contract
+
+build-contracts: build-payment-contract build-factory build-payment-contract-factory build-redeem-box build-redeem-session build-cep78-transfer-session
 	cd contract && cargo build --release --target wasm32-unknown-unknown
 	cd client/mint_session && cargo build --release --target wasm32-unknown-unknown
 	cd client/balance_of_session && cargo build --release --target wasm32-unknown-unknown
@@ -50,17 +65,38 @@ test: setup-test
 clippy:
 	cd contract && cargo clippy --target wasm32-unknown-unknown --bins -- -D warnings
 	cd contract && cargo clippy --no-default-features --lib -- -D warnings
-	cd tests && cargo clippy --all-targets -- -D warnings
+	cd factory/contracts && cargo clippy --all-targets -- -D warnings
+	cd payment-contract && cargo clippy --all-targets -- -D warnings
+	cd payment-contract-factory && cargo clippy --all-targets -- -D warnings
+	cd redeem-box && cargo clippy --all-targets -- -D warnings
+	cd redeem-session && cargo clippy --all-targets -- -D warnings
+	cd cep78-transfer-session && cargo clippy --all-targets -- -D warnings
 
 check-lint: clippy
 	cd contract && cargo fmt -- --check
-	cd tests && cargo fmt -- --check
+	cd factory/contracts && cargo fmt -- --check
+	cd payment-contract && cargo fmt -- --check
+	cd payment-contract-factory && cargo fmt -- --check
+	cd redeem-box && cargo fmt -- --check
+	cd redeem-session && cargo fmt -- --check
+	cd cep78-transfer-session && cargo fmt -- --check
 
 lint: clippy
 	cd contract && cargo fmt
-	cd tests && cargo fmt
+	cd factory/contracts && cargo fmt
+	cd payment-contract && cargo fmt
+	cd payment-contract-factory && cargo fmt
+	cd redeem-box && cargo fmt
+	cd redeem-session && cargo fmt
+	cd cep78-transfer-session && cargo fmt
 
 clean:
 	cd contract && cargo clean
+	cd factory/contracts && cargo clean
+	cd payment-contract && cargo clean
+	cd payment-contract-factory && cargo clean
+	cd redeem-box && cargo clean
+	cd redeem-session && cargo clean
+	cd cep78-transfer-session && cargo clean
 	cd tests && cargo clean
 	rm -rf tests/wasm

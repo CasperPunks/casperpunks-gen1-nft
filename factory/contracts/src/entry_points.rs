@@ -2,9 +2,7 @@ use alloc::{boxed::Box, string::String, vec};
 
 use crate::constants::*;
 
-use casper_types::{
-    CLType, CLTyped, EntryPoint, EntryPointAccess, EntryPointType, EntryPoints, Parameter, U256,
-};
+use casper_types::{CLType, EntryPoint, EntryPointAccess, EntryPointType, EntryPoints, Parameter};
 
 fn transfer_owner() -> EntryPoint {
     EntryPoint::new(

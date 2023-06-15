@@ -13,11 +13,7 @@ use casper_types::{
     system::CallStackElement,
     ApiError, CLTyped, Key, URef, U256,
 };
-use core::{
-    convert::{TryInto},
-    mem::MaybeUninit,
-    u64,
-};
+use core::{convert::TryInto, mem::MaybeUninit};
 // Helper functions
 
 pub(crate) fn get_key<T: FromBytes + CLTyped>(name: &str) -> Option<T> {
@@ -32,11 +28,10 @@ pub(crate) fn get_key<T: FromBytes + CLTyped>(name: &str) -> Option<T> {
 }
 
 pub(crate) fn get_key_from_address(addr: &Address) -> Key {
-    let self_key = match *addr {
+    match *addr {
         Address::Account(acc) => Key::from(acc),
         Address::Contract(contract_package_hash) => Key::from(contract_package_hash),
-    };
-    self_key
+    }
 }
 
 pub(crate) fn set_key<T: ToBytes + CLTyped>(name: &str, value: T) {
@@ -181,7 +176,7 @@ fn make_dictionary_item_key(owner: Address) -> String {
     // characters.
     // Even if the preimage increased in size we still have extra space but even in case of much
     // larger preimage we can switch to base85 which has ratio of 4:5.
-    base64::encode(&preimage)
+    base64::encode(preimage)
 }
 
 #[no_mangle]
@@ -249,10 +244,4 @@ pub fn require(v: bool, e: Error) {
     if !v {
         runtime::revert(e);
     }
-}
-pub fn current_block_timestamp_sec() -> u64 {
-    u64::from(runtime::get_blocktime())
-        .checked_rem(u64::MAX)
-        .unwrap()
-        / 1000
 }

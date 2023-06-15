@@ -2,14 +2,15 @@ use alloc::{boxed::Box, string::String, vec};
 
 use crate::constants::*;
 
-use casper_types::{
-    CLType, EntryPoint, EntryPointAccess, EntryPointType, EntryPoints, Parameter,
-};
+use casper_types::{CLType, EntryPoint, EntryPointAccess, EntryPointType, EntryPoints, Parameter};
 
 fn redeem() -> EntryPoint {
     EntryPoint::new(
         String::from("redeem"),
-        vec![Parameter::new("token_ids", CLType::List(Box::new(CLType::Key)))],
+        vec![Parameter::new(
+            "token_ids",
+            CLType::List(Box::new(CLType::Key)),
+        )],
         CLType::Unit,
         EntryPointAccess::Public,
         EntryPointType::Contract,
@@ -23,7 +24,7 @@ fn init() -> EntryPoint {
             Parameter::new("contract_hash", CLType::Key),
             Parameter::new("box_package_hash", CLType::Key),
             Parameter::new("punk_gen1_package_hash", CLType::Key),
-            Parameter::new("contract_owner", CLType::Key)
+            Parameter::new("contract_owner", CLType::Key),
         ],
         CLType::Unit,
         EntryPointAccess::Public,

@@ -1,6 +1,5 @@
 //! Constants used by the Stake contract.
 
-
 // Named keys
 pub const FEE_TOKEN_KEY_NAME: &str = "contract_hash";
 pub const CONTRACT_HASH_KEY_NAME: &str = "contract_hash";

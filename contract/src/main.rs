@@ -24,7 +24,7 @@ use alloc::{
 };
 use constants::{ARG_ADDITIONAL_REQUIRED_METADATA, ARG_OPTIONAL_METADATA, NFT_METADATA_KINDS};
 use modalities::Requirement;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use core::convert::{TryFrom, TryInto};
 
@@ -487,7 +487,7 @@ struct TokenMetadata {
     name: String,
     symbol: String,
     token_uri: String,
-    checksum: String
+    checksum: String,
 }
 
 // Mints a new token. Minting will fail if allow_minting is set to false.
@@ -599,11 +599,11 @@ pub extern "C" fn mint() {
             name: "CasperPunks Gen1".to_string(),
             symbol: "CP-GEN1".to_string(),
             token_uri: base_metadata_url.clone() + &token_id.to_string(),
-            checksum: "".to_string()
+            checksum: "".to_string(),
         };
         let token_metadata = serde_json_wasm::to_string(&token_metadata).unwrap();
         // This is the token ID.
-        let token_identifier: TokenIdentifier = TokenIdentifier::Index(token_id.clone());
+        let token_identifier: TokenIdentifier = TokenIdentifier::Index(token_id);
         utils::upsert_dictionary_value_from_key(
             TOKEN_OWNERS,
             &token_identifier.get_dictionary_item_key(),
@@ -633,13 +633,13 @@ pub extern "C" fn mint() {
                 token_id: token_identifier.clone(),
             }),
         }
-        utils::add_page_entry_and_page_record(token_id.clone(), &owned_tokens_item_key, true);
+        utils::add_page_entry_and_page_record(token_id, &owned_tokens_item_key, true);
     }
     //Increment the count of owned tokens.
     let updated_token_count =
         match utils::get_dictionary_value_from_key::<u64>(TOKEN_COUNT, &owned_tokens_item_key) {
             Some(balance) => balance + count,
-            None => count as u64,
+            None => count,
         };
     utils::upsert_dictionary_value_from_key(
         TOKEN_COUNT,
@@ -660,7 +660,11 @@ pub extern "C" fn mint() {
 pub extern "C" fn update_base_metadata() {
     punk::only_owner_or_minter();
     let new_base: String = runtime::get_named_arg("base_metadata_url");
-    let uref = utils::get_uref("base_metadata_url", NFTCoreError::MissingBaseMetadata, NFTCoreError::InvalidBaseMetadata);
+    let uref = utils::get_uref(
+        "base_metadata_url",
+        NFTCoreError::MissingBaseMetadata,
+        NFTCoreError::InvalidBaseMetadata,
+    );
     storage::write(uref, new_base);
 }
 
@@ -672,28 +676,25 @@ pub extern "C" fn update_metadata_url_for_tokens() {
         "base_metadata_url",
         NFTCoreError::MissingBaseMetadata,
         NFTCoreError::InvalidBaseMetadata,
-    );    
+    );
 
     for token_id in &token_ids {
-        let token_identifier: TokenIdentifier = TokenIdentifier::Index(token_id.clone());
+        let token_identifier: TokenIdentifier = TokenIdentifier::Index(*token_id);
         let token_metadata = TokenMetadata {
             name: "CasperPunks Generation 1".to_string(),
             symbol: "CP-GEN-1".to_string(),
             token_uri: base_metadata_url.clone() + &token_id.to_string(),
-            checksum: "".to_string()
+            checksum: "".to_string(),
         };
         let token_metadata: String = serde_json_wasm::to_string(&token_metadata).unwrap();
         utils::upsert_dictionary_value_from_key(
             METADATA_CEP78,
             &token_identifier.get_dictionary_item_key(),
-            token_metadata.clone()
+            token_metadata.clone(),
         );
 
         // emit event to notify explorer
-        casper_event_standard::emit(MetadataUpdated::new(
-            token_identifier,
-            token_metadata,
-        ));
+        casper_event_standard::emit(MetadataUpdated::new(token_identifier, token_metadata));
     }
 }
 

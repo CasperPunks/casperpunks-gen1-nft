@@ -1,4 +1,4 @@
-use crate::{address::Address, alloc::string::*, error::Error};
+use crate::{address::Address, error::Error};
 use alloc::{string::String, vec::Vec};
 use casper_contract::{
     contract_api::{self, runtime, storage},
@@ -11,15 +11,13 @@ use casper_types::{
         FromBytes, ToBytes, {self},
     },
     system::CallStackElement,
-    ApiError, CLTyped, ContractPackageHash, Key, URef, U256, U512,
+    ApiError, CLTyped, Key, URef, U256, U512,
 };
 use core::{
     convert::{TryFrom, TryInto},
     mem::MaybeUninit,
     u64,
 };
-
-use crate::constants::*;
 
 use crate::error;
 
@@ -36,19 +34,6 @@ pub(crate) fn get_key<T: FromBytes + CLTyped>(name: &str) -> Option<T> {
     }
 }
 
-pub(crate) fn get_key_from_address(addr: &Address) -> Key {
-    let self_key = match *addr {
-        Address::Account(acc) => Key::from(acc),
-        Address::Contract(contract_package_hash) => Key::from(contract_package_hash),
-    };
-    self_key
-}
-
-pub(crate) fn get_self_key() -> Key {
-    let self_addr = get_self_address().unwrap_or_revert();
-    return get_key_from_address(&self_addr);
-}
-
 pub(crate) fn set_key<T: ToBytes + CLTyped>(name: &str, value: T) {
     match runtime::get_key(name) {
         Some(key) => {
@@ -59,42 +44,6 @@ pub(crate) fn set_key<T: ToBytes + CLTyped>(name: &str, value: T) {
             let key = storage::new_uref(value).into();
             runtime::put_key(name, key);
         }
-    }
-}
-
-pub(crate) fn get_self_address() -> Result<Address, Error> {
-    get_last_call_stack_item()
-        .map(call_stack_element_to_address)
-        .ok_or(Error::InvalidContext)
-}
-
-fn get_last_call_stack_item() -> Option<CallStackElement> {
-    let call_stack = runtime::get_call_stack();
-    call_stack.into_iter().rev().nth(0)
-}
-
-/// Gets the immediate call stack element of the current execution.
-fn get_immediate_call_stack_item() -> Option<CallStackElement> {
-    let call_stack = runtime::get_call_stack();
-    call_stack.into_iter().rev().nth(1)
-}
-
-/// Returns address based on a [`CallStackElement`].
-///
-/// For `Session` and `StoredSession` variants it will return account hash, and for `StoredContract`
-/// case it will use contract hash as the address.
-fn call_stack_element_to_address(call_stack_element: CallStackElement) -> Address {
-    match call_stack_element {
-        CallStackElement::Session { account_hash } => Address::from(account_hash),
-        CallStackElement::StoredSession { account_hash, .. } => {
-            // Stored session code acts in account's context, so if stored session wants to interact
-            // with an ERC20 token caller's address will be used.
-            Address::from(account_hash)
-        }
-        CallStackElement::StoredContract {
-            contract_package_hash,
-            ..
-        } => Address::from(contract_package_hash),
     }
 }
 
@@ -112,16 +61,6 @@ pub(crate) fn get_verified_caller() -> Result<Key, Error> {
     }
 }
 
-pub(crate) fn make_dictionary_item_key_for_contract(contract_hash: Key) -> String {
-    let pre_contract = contract_hash.into_hash().unwrap_or_revert();
-    // NOTE: As for now dictionary item keys are limited to 64 characters only. Instead of using
-    // hashing (which will effectively hash a hash) we'll use base64. Preimage is about 33 bytes for
-    // both Address variants, and approximated base64-encoded length will be 4 * (33 / 3) ~ 44
-    // characters.
-    // Even if the preimage increased in size we still have extra space but even in case of much
-    // larger preimage we can switch to base85 which has ratio of 4:5.
-    hex::encode(&pre_contract)
-}
 pub(crate) fn make_dictionary_item_key_for_account(account_hash: Key) -> String {
     let pre_account = account_hash.into_account().unwrap_or_revert();
     // NOTE: As for now dictionary item keys are limited to 64 characters only. Instead of using
@@ -192,21 +131,6 @@ pub(crate) fn read_host_buffer_into(dest: &mut [u8]) -> Result<usize, ApiError> 
     Ok(unsafe { bytes_written.assume_init() })
 }
 
-/// Gets the immediate session caller of the current execution.
-///
-/// This function ensures that only session code can execute this function, and disallows stored
-/// session/stored contracts.
-pub(crate) fn get_immediate_caller_address() -> Result<Address, Error> {
-    get_immediate_call_stack_item()
-        .map(call_stack_element_to_address)
-        .ok_or(Error::InvalidContext)
-}
-
-pub(crate) fn get_immediate_caller_key() -> Key {
-    let addr = get_immediate_caller_address().unwrap_or_revert();
-    get_key_from_address(&addr)
-}
-
 #[no_mangle]
 pub(crate) fn dictionary_write(dictionary_uref: URef, address: Address, amount: U256) {
     let dictionary_item_key = make_dictionary_item_key(address);
@@ -269,38 +193,6 @@ pub(crate) fn get_named_arg_size(name: &str) -> Option<usize> {
     }
 }
 
-pub(crate) fn get_token_identifiers_from_runtime_args(
-    identifier_mode: &NFTIdentifierMode,
-) -> Vec<TokenIdentifier> {
-    match identifier_mode {
-        NFTIdentifierMode::Ordinal => get_named_arg_with_user_errors::<Vec<u64>>(
-            ARG_TOKEN_IDS,
-            Error::MissingTokenID,
-            Error::InvalidTokenIdentifier,
-        )
-        .unwrap_or_revert()
-        .iter()
-        .map(|identifier| TokenIdentifier::new_index(*identifier))
-        .collect::<Vec<_>>(),
-        NFTIdentifierMode::Hash => get_named_arg_with_user_errors::<Vec<String>>(
-            ARG_TOKEN_HASHES,
-            Error::MissingTokenID,
-            Error::InvalidTokenIdentifier,
-        )
-        .unwrap_or_revert()
-        .iter()
-        .map(|identier| TokenIdentifier::new_hash(identier.clone()))
-        .collect::<Vec<_>>(),
-    }
-}
-
-pub(crate) fn get_identifier_mode_from_runtime_args() -> NFTIdentifierMode {
-    let identifier_mode_u8: u8 = runtime::get_named_arg(ARG_IDENTIFIER_MODE);
-    let identifier_mode =
-        NFTIdentifierMode::try_from(identifier_mode_u8).unwrap_or(NFTIdentifierMode::Ordinal);
-    identifier_mode
-}
-
 pub(crate) fn get_named_arg_with_user_errors<T: FromBytes>(
     name: &str,
     missing: Error,
@@ -332,51 +224,6 @@ pub(crate) fn get_named_arg_with_user_errors<T: FromBytes>(
     bytesrepr::deserialize(arg_bytes).map_err(|_| invalid)
 }
 
-#[derive(PartialEq, Clone)]
-pub(crate) enum TokenIdentifier {
-    Index(u64),
-    Hash(String),
-}
-
-impl TokenIdentifier {
-    pub(crate) fn new_index(index: u64) -> Self {
-        TokenIdentifier::Index(index)
-    }
-
-    pub(crate) fn new_hash(hash: String) -> Self {
-        TokenIdentifier::Hash(hash)
-    }
-
-    pub(crate) fn get_index(&self) -> Option<u64> {
-        if let Self::Index(index) = self {
-            return Some(*index);
-        }
-        None
-    }
-
-    pub(crate) fn get_hash(self) -> Option<String> {
-        if let Self::Hash(hash) = self {
-            return Some(hash);
-        }
-        None
-    }
-
-    pub(crate) fn to_string(&self) -> String {
-        match self {
-            TokenIdentifier::Index(index) => index.to_string(),
-            TokenIdentifier::Hash(hash) => hash.clone(),
-        }
-    }
-    pub(crate) fn from_string(value_string: String, identifier_mode: &NFTIdentifierMode) -> Self {
-        match identifier_mode {
-            NFTIdentifierMode::Ordinal => {
-                TokenIdentifier::new_index(value_string.parse::<u64>().unwrap())
-            }
-            NFTIdentifierMode::Hash => TokenIdentifier::new_hash(value_string.into()),
-        }
-    }
-}
-
 pub(crate) fn get_uref(name: &str) -> URef {
     let key = runtime::get_key(name).unwrap_or_revert();
     key.into_uref().unwrap_or_revert()
@@ -405,12 +252,6 @@ pub(crate) fn write_dictionary_value_from_key<T: CLTyped + FromBytes + ToBytes>(
         Ok(None | Some(_)) => storage::dictionary_put(seed_uref, key, value),
         Err(error) => runtime::revert(error),
     }
-}
-
-pub(crate) fn get_unlock_id_key(unlock_id: &str) -> String {
-    let unlock_id_bytes = unlock_id.as_bytes();
-    let key_bytes = runtime::blake2b(unlock_id_bytes);
-    hex::encode(&key_bytes)
 }
 
 pub fn u256_to_u512(nb: U256) -> U512 {

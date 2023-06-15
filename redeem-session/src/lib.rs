@@ -4,13 +4,8 @@
 extern crate alloc;
 mod error;
 
-use contract::{
-    contract_api::{runtime}
-};
-use types::{
-    runtime_args, ContractPackageHash, Key,
-    RuntimeArgs
-};
+use contract::contract_api::runtime;
+use types::{runtime_args, ContractPackageHash, Key, RuntimeArgs};
 
 #[no_mangle]
 pub extern "C" fn call() {
@@ -27,7 +22,7 @@ pub extern "C" fn call() {
         runtime_args! {
             "approve_all" => true,
             "operator" => redeem_contract_hash
-        }
+        },
     );
 
     // redeem
@@ -37,6 +32,6 @@ pub extern "C" fn call() {
         "redeem",
         runtime_args! {
             "token_ids" => token_ids
-        }
+        },
     );
 }

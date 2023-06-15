@@ -16,7 +16,7 @@ mod helpers;
 pub mod named_keys;
 
 use crate::{constants::*, error::Error, helpers::*};
-use alloc::{string::String, vec, vec::*};
+use alloc::{string::String, vec};
 use casper_contract::{
     contract_api::{runtime, storage, system::transfer_from_purse_to_account},
     unwrap_or_revert::UnwrapOrRevert,
@@ -58,11 +58,8 @@ pub extern "C" fn init() {
         "max_per_one_r3",
         storage::new_uref(max_per_one_r3 as u8).into(),
     );
-    runtime::put_key("number_of_minted_box", storage::new_uref(0 as u64).into());
-    runtime::put_key(
-        "number_of_minted_box_r3",
-        storage::new_uref(0 as u64).into(),
-    );
+    runtime::put_key("number_of_minted_box", storage::new_uref(0_u64).into());
+    runtime::put_key("number_of_minted_box_r3", storage::new_uref(0_u64).into());
     runtime::put_key(
         MINTING_START_TIME,
         storage::new_uref(start_time as u64).into(),
@@ -84,8 +81,7 @@ pub extern "C" fn init() {
 #[no_mangle]
 fn call() {
     let contract_name: String = runtime::get_named_arg(NFT_FACTORY_CONTRACT_KEY_NAME);
-    let contract_hash_key_name = String::from(contract_name.clone());
-    let contract_package_hash_key_name = String::from(contract_name.clone() + "_package_hash");
+    let contract_hash_key_name = contract_name.clone();
 
     let contract_owner: Key = helpers::get_named_arg_with_user_errors(
         ARG_CONTRACT_OWNER,
@@ -204,47 +200,9 @@ fn call() {
 }
 
 #[no_mangle]
-pub extern "C" fn set_addresses_whitelist() -> Result<(), Error> {
+pub extern "C" fn set_addresses_whitelist() {
     // Check caller must be DEV account
     only_owner();
-
-    // // Take valid new_addresses from runtime args
-    // let new_addresses_whitelist = helpers::get_named_arg_with_user_errors::<Vec<Key>>(
-    //     ARG_NEW_ADDRESSES_WHITELIST,
-    //     Error::MissingNewAddressWhitelist,
-    //     Error::InvalidNewAddressWhitelist,
-    // )
-    // .unwrap_or_revert_with(Error::CannotGetWhitelistAddrressArg);
-
-    // let is_whitelist = helpers::get_named_arg_with_user_errors::<bool>(
-    //     ARG_IS_WHITELIST,
-    //     Error::MissingNumberOfTickets,
-    //     Error::InvalidNumberOfTickets,
-    // )
-    // .unwrap_or_revert_with(Error::CannotGetNumberOfTickets);
-
-    // let mut new_addresses: Vec<Key> = Vec::new();
-    // // Get new address if valid.
-    // for new_address in new_addresses_whitelist {
-    //     // Validate new_address is account type
-    //     if new_address.into_account().is_none() {
-    //         runtime::revert(Error::InputMustBeAccountHash);
-    //     }
-    //     let account_key = make_dictionary_item_key_for_account(new_address: Key);
-    //     // push new_address in array new_addresses
-    //     new_addresses.push(new_address.clone());
-    // }
-
-    // // Add new_addresses into dictionary
-
-    // for new_address in new_addresses {
-    //     let account_key_1 = make_dictionary_item_key_for_account(new_address: Key);
-
-    //     write_dictionary_value_from_key(ADDRESSES_WHITELIST, &account_key_1, is_whitelist);
-
-    //     write_dictionary_value_from_key(NFT_MINTED_NUMBER, &account_key_1, 0 as u8);
-    // }
-    Ok(())
 }
 
 // mint function of factory
@@ -284,16 +242,17 @@ pub extern "C" fn mint() {
         Error::InvalidContext,
     );
 
-    let NFT_MINTED_NUMBER_key = if is_round2_finished {
+    let nft_minted_number_key = if is_round2_finished {
         NFT_MINTED_NUMBER_R3
     } else {
         NFT_MINTED_NUMBER
     };
 
-    let nft_minted = match get_dictionary_value_from_key::<u8>(NFT_MINTED_NUMBER_key, &nft_owner_key) {
-        Some(minted) => minted as u8,
-        None => 0u8,
-    };
+    let nft_minted =
+        match get_dictionary_value_from_key::<u8>(nft_minted_number_key, &nft_owner_key) {
+            Some(minted) => minted as u8,
+            None => 0u8,
+        };
     if nft_minted + count > max_per_one {
         runtime::revert(Error::ReachMaximumNumberOfMinting);
     }
@@ -371,9 +330,9 @@ pub extern "C" fn mint() {
     let nft_contract_package: Key = helpers::get_key(ARG_NFT_CONTRACT_PACKAGE).unwrap();
 
     call_cep78_mint(&nft_contract_package, nft_owner, count);
-    
+
     write_dictionary_value_from_key(
-        NFT_MINTED_NUMBER_key,
+        nft_minted_number_key,
         &nft_owner_key,
         (nft_minted + count) as u8,
     );
@@ -389,35 +348,31 @@ pub extern "C" fn mint() {
 }
 
 #[no_mangle]
-pub extern "C" fn transfer_owner() -> Result<(), Error> {
+pub extern "C" fn transfer_owner() {
     only_owner();
     let new_contract_owner: Key = runtime::get_named_arg(ARG_CONTRACT_OWNER);
     set_key(CONTRACT_OWNER_KEY_NAME, new_contract_owner);
-    Ok(())
 }
 
 #[no_mangle]
-pub extern "C" fn change_fee_receiver() -> Result<(), Error> {
+pub extern "C" fn change_fee_receiver() {
     only_owner();
     let new_fee_receiver: Key = runtime::get_named_arg(ARG_FEE_RECEIVER);
     set_key(FEE_RECEIVER, new_fee_receiver);
-    Ok(())
 }
 
 #[no_mangle]
-pub extern "C" fn change_mint_fee() -> Result<(), Error> {
+pub extern "C" fn change_mint_fee() {
     only_owner();
     let new_wcspr_mint_fee: U256 = runtime::get_named_arg(ARG_MINT_FEE);
     set_key(MINT_FEE, new_wcspr_mint_fee);
-    Ok(())
 }
 
 #[no_mangle]
-pub extern "C" fn change_mint_fee_r3() -> Result<(), Error> {
+pub extern "C" fn change_mint_fee_r3() {
     only_owner();
     let new_wcspr_mint_fee: U256 = runtime::get_named_arg(ARG_MINT_FEE_R3);
     set_key(MINT_FEE_R3, new_wcspr_mint_fee);
-    Ok(())
 }
 
 #[no_mangle]

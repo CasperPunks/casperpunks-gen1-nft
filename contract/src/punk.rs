@@ -92,6 +92,6 @@ pub fn entry_points() -> Vec<EntryPoint> {
             CLType::Unit,
             EntryPointAccess::Public,
             EntryPointType::Contract,
-        )
+        ),
     ]
 }

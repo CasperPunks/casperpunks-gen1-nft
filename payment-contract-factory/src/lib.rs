@@ -10,10 +10,7 @@ use contract::{
     contract_api::{account, runtime, system},
     unwrap_or_revert::UnwrapOrRevert,
 };
-use types::{
-    account::AccountHash, runtime_args, ContractHash, ContractPackageHash, HashAddr, Key,
-    RuntimeArgs, URef, U256, U512,
-};
+use types::{runtime_args, ContractHash, HashAddr, Key, RuntimeArgs, URef, U256, U512};
 
 #[no_mangle]
 pub extern "C" fn call() {

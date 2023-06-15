@@ -5,14 +5,12 @@ extern crate alloc;
 mod converters;
 mod error;
 
-use crate::converters::u512_to_u256;
-use crate::error::Error;
-use contract::contract_api::{account, runtime, system};
-use contract::unwrap_or_revert::UnwrapOrRevert;
-use types::account::AccountHash;
-use types::{
-    runtime_args, ContractHash, ContractPackageHash, HashAddr, Key, RuntimeArgs, URef, U256, U512,
+use crate::{converters::u512_to_u256, error::Error};
+use contract::{
+    contract_api::{account, runtime, system},
+    unwrap_or_revert::UnwrapOrRevert,
 };
+use types::{runtime_args, ContractHash, HashAddr, Key, RuntimeArgs, URef, U256, U512};
 
 #[no_mangle]
 pub extern "C" fn call() {
@@ -44,7 +42,7 @@ pub extern "C" fn call() {
     let contract_hash_addr: HashAddr = box_contract_hash.into_hash().unwrap_or_revert();
     let box_contract_hash: ContractHash = ContractHash::new(contract_hash_addr);
 
-    let count:u64 = runtime::get_named_arg("count");
+    let count: u64 = runtime::get_named_arg("count");
     for _u in 0..count {
         let _: (String, Key, String) = runtime::call_contract(
             box_contract_hash,
@@ -57,7 +55,7 @@ pub extern "C" fn call() {
 fn retrieve_deposit_entry_point_name_args(
     deposit_entry_point_name: String,
     purse: URef,
-    amount: U256,
+    _amount: U256,
 ) -> RuntimeArgs {
     if deposit_entry_point_name == "mint" {
         retrieve_mint_args(purse)
@@ -73,4 +71,3 @@ fn retrieve_mint_args(src_purse: URef) -> RuntimeArgs {
         "token_owner" => runtime::get_named_arg::<Key>("token_owner"),
     }
 }
-

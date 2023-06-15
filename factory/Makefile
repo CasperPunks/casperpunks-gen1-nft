@@ -12,18 +12,18 @@ test: build-contract
 	cd tests && cargo test -- --nocapture
 
 clippy:
-	cd nftbridge && cargo clippy --all-targets -- -D warnings
+	cd contract && cargo clippy --all-targets -- -D warnings
 	cd tests && cargo clippy --all-targets -- -D warnings
 
 check-lint: clippy
-	cd nftbridge && cargo fmt -- --check
+	cd contract && cargo fmt -- --check
 	cd tests && cargo fmt -- --check
 
 lint: clippy
-	cd nftbridge && cargo fmt
+	cd contract && cargo fmt
 	cd tests && cargo fmt
 
 clean:
-	cd nftbridge && cargo clean
+	cd contract && cargo clean
 	cd tests && cargo clean
 	rm -rf tests/wasm
