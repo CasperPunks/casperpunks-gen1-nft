@@ -188,6 +188,21 @@ const CEP78 = class {
         }
     }
 
+
+    async checkRegisterOwner(ownerAccountHash) {
+        try {
+            const itemKey = ownerAccountHash.toString();
+            const result = await utils.contractDictionaryGetter(
+                this.nodeAddress,
+                itemKey,
+                this.namedKeys.pageTable
+            );
+            return result;
+        } catch (e) {
+            throw e;
+        }
+    }
+
     async getOwnerOf(tokenId) {
         try {
             const itemKey = tokenId.toString();
