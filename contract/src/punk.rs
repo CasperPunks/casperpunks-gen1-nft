@@ -43,19 +43,6 @@ pub fn minter_internal() -> Key {
     minter_key
 }
 
-pub fn only_active_transfer() {
-    utils::require(enable_transfer_internal() == true, NFTCoreError::OnlyOwner);
-}
-
-pub fn enable_transfer_internal() -> bool {
-    let transferable: bool = utils::get_stored_value_with_user_errors(
-        "enable_transfer",
-        NFTCoreError::MissingContractOwner,
-        NFTCoreError::InvalidContractOwner,
-    );
-    transferable
-}
-
 #[no_mangle]
 pub extern "C" fn transfer_owner() {
     only_owner();
@@ -73,18 +60,6 @@ pub extern "C" fn change_minter() {
     )
     .unwrap_or_revert();
     utils::set_key(THE_CONTRACT_MINTER, new_minter);
-}
-
-#[no_mangle]
-pub extern "C" fn set_enable_transfer() {
-    only_owner();
-    let transferable: bool = utils::get_named_arg_with_user_errors(
-        "enable_transfer",
-        NFTCoreError::MissingContractOwner,
-        NFTCoreError::InvalidContractOwner,
-    )
-    .unwrap_or_revert();
-    utils::set_key("enable_transfer", transferable);
 }
 
 pub fn init(contract_owner: Key) {
@@ -117,13 +92,6 @@ pub fn entry_points() -> Vec<EntryPoint> {
             CLType::Unit,
             EntryPointAccess::Public,
             EntryPointType::Contract,
-        ),
-        EntryPoint::new(
-            String::from("set_enable_transfer"),
-            vec![],
-            CLType::Unit,
-            EntryPointAccess::Public,
-            EntryPointType::Contract,
-        ),
+        )
     ]
 }

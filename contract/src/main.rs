@@ -11,7 +11,7 @@ mod events;
 mod helpers;
 mod metadata;
 mod modalities;
-mod punk_lootbox;
+mod punk;
 mod utils;
 
 use alloc::{
@@ -24,6 +24,7 @@ use alloc::{
 };
 use constants::{ARG_ADDITIONAL_REQUIRED_METADATA, ARG_OPTIONAL_METADATA, NFT_METADATA_KINDS};
 use modalities::Requirement;
+use serde::{Serialize, Deserialize};
 
 use core::convert::{TryFrom, TryInto};
 
@@ -43,7 +44,6 @@ use casper_contract::{
 
 use constants::*;
 
-use address::Address;
 use error::NFTCoreError;
 use events::{
     events_cep47::{record_cep47_event_dictionary, CEP47Event},
@@ -58,6 +58,9 @@ use modalities::{
     NFTKind, NFTMetadataKind, NamedKeyConventionMode, OwnerReverseLookupMode, OwnershipMode,
     TokenIdentifier, WhitelistMode,
 };
+
+pub const DEFAULT_BASE_METADATA: &str = "https://api-box.casperpunks.io/metadata/";
+
 #[no_mangle]
 pub extern "C" fn init() {
     // We only allow the init() entrypoint to be called once.
@@ -281,6 +284,10 @@ pub extern "C" fn init() {
     //
     // Initialize contract with URefs for all invariant values, which can never be changed.
     runtime::put_key(
+        "base_metadata_url",
+        storage::new_uref(DEFAULT_BASE_METADATA.to_string()).into(),
+    );
+    runtime::put_key(
         COLLECTION_NAME,
         storage::new_uref(collection_name.clone()).into(),
     );
@@ -398,12 +405,12 @@ pub extern "C" fn init() {
     runtime::put_key(RLO_MFLAG, storage::new_uref(false).into());
 
     let the_contract_owner: Key = utils::get_optional_named_arg_with_user_errors(
-        punk_lootbox::THE_CONTRACT_OWNER,
+        punk::THE_CONTRACT_OWNER,
         NFTCoreError::InvalidContractOwner,
     )
     .unwrap_or_revert();
 
-    punk_lootbox::init(the_contract_owner);
+    punk::init(the_contract_owner);
 }
 
 // set_variables allows the user to set any variable or any combination of variables simultaneously.
@@ -475,12 +482,20 @@ pub extern "C" fn set_variables() {
     }
 }
 
+#[derive(Serialize, Deserialize)]
+struct TokenMetadata {
+    name: String,
+    symbol: String,
+    token_uri: String,
+    checksum: String
+}
+
 // Mints a new token. Minting will fail if allow_minting is set to false.
 #[no_mangle]
 pub extern "C" fn mint() {
-    punk_lootbox::only_owner_or_minter();
-    // punk_lootbox::minting_valid_time();
-    // punk_lootbox::take_cspr_from_minting();
+    punk::only_owner_or_minter();
+    // punk::minting_valid_time();
+    // punk::take_cspr_from_minting();
     // The contract owner can toggle the minting behavior on and off over time.
     // The contract is toggled on by default.
     let minting_status = utils::get_stored_value_with_user_errors::<bool>(
@@ -558,21 +573,8 @@ pub extern "C" fn mint() {
     // The contract's ownership behavior (determined at installation) determines,
     // who owns the NFT we are about to mint.()
     let caller = utils::get_verified_caller().unwrap_or_revert();
-    let token_owner_keys: Vec<Key> = runtime::get_named_arg(ARG_TOKEN_OWNERS);
-    let number_of_boxs: Vec<u8> = runtime::get_named_arg(ARG_NUMBER_OF_BOXS);
-
-    if token_owner_keys.len() != number_of_boxs.len() {
-        runtime::revert(NFTCoreError::InvalidContext);
-    }
-
-    let mut next_index: u64 = minted_tokens_count.clone();
-
-    let token_metadata = utils::get_named_arg_with_user_errors::<String>(
-        ARG_TOKEN_META_DATA,
-        NFTCoreError::MissingTokenMetaData,
-        NFTCoreError::InvalidTokenMetaData,
-    )
-    .unwrap_or_revert();
+    let token_owner_key: Key = runtime::get_named_arg(ARG_TOKEN_OWNER);
+    let count: u64 = runtime::get_named_arg("count");
 
     let events_mode: EventsMode =
         EventsMode::try_from(utils::get_stored_value_with_user_errors::<u8>(
@@ -582,66 +584,117 @@ pub extern "C" fn mint() {
         ))
         .unwrap_or_revert();
 
-    for n in 0..token_owner_keys.len() {
-        let token_owner_key: Key = token_owner_keys[n];
-        let number_of_box: u8 = number_of_boxs[n];
+    register_owner_internal(token_owner_key);
+    let owned_tokens_item_key = utils::encode_dictionary_item_key(token_owner_key);
+    let base_metadata_url: String = utils::get_stored_value_with_user_errors::<String>(
+        "base_metadata_url",
+        NFTCoreError::MissingBaseMetadata,
+        NFTCoreError::InvalidBaseMetadata,
+    );
 
-        register_owner_internal(token_owner_key);
-        let owned_tokens_item_key = utils::encode_dictionary_item_key(token_owner_key);
-
-        for _ in 0..number_of_box {
-            // This is the token ID.
-            let token_identifier = TokenIdentifier::Index(next_index.clone());
-            utils::upsert_dictionary_value_from_key(
-                TOKEN_OWNERS,
-                &token_identifier.get_dictionary_item_key(),
-                token_owner_key,
-            );
-            utils::upsert_dictionary_value_from_key(
-                TOKEN_ISSUERS,
-                &token_identifier.get_dictionary_item_key(),
-                caller,
-            );
-
-            // Increment number_of_minted_tokens by one
-            next_index = next_index + 1u64;
-            // Emit Mint event.
-
-            match events_mode {
-                EventsMode::NoEvents => {}
-                EventsMode::CES => casper_event_standard::emit(Mint::new(
-                    token_owner_key,
-                    token_identifier.clone(),
-                    token_metadata.clone(),
-                )),
-                EventsMode::CEP47 => record_cep47_event_dictionary(CEP47Event::Mint {
-                    recipient: token_owner_key,
-                    token_id: token_identifier.clone(),
-                }),
-            }
-            utils::add_page_entry_and_page_record(next_index - 1u64, &owned_tokens_item_key, true);
-        }
-        //Increment the count of owned tokens.
-        let updated_token_count = match utils::get_dictionary_value_from_key::<u64>(
-            TOKEN_COUNT,
-            &owned_tokens_item_key,
-        ) {
-            Some(balance) => balance + (number_of_box as u64),
-            None => number_of_box as u64,
+    for i in 0..count {
+        // token id start from 1
+        let token_id = minted_tokens_count + i + 1;
+        let token_metadata = TokenMetadata {
+            name: "CasperPunks Gen1".to_string(),
+            symbol: "CP-GEN1".to_string(),
+            token_uri: base_metadata_url.clone() + &token_id.to_string(),
+            checksum: "".to_string()
         };
+        let token_metadata = serde_json_wasm::to_string(&token_metadata).unwrap();
+        // This is the token ID.
+        let token_identifier: TokenIdentifier = TokenIdentifier::Index(token_id.clone());
         utils::upsert_dictionary_value_from_key(
-            TOKEN_COUNT,
-            &owned_tokens_item_key,
-            updated_token_count,
+            TOKEN_OWNERS,
+            &token_identifier.get_dictionary_item_key(),
+            token_owner_key,
         );
+        utils::upsert_dictionary_value_from_key(
+            TOKEN_ISSUERS,
+            &token_identifier.get_dictionary_item_key(),
+            caller,
+        );
+
+        utils::upsert_dictionary_value_from_key(
+            METADATA_CEP78,
+            &token_identifier.get_dictionary_item_key(),
+            token_metadata.clone(),
+        );
+
+        match events_mode {
+            EventsMode::NoEvents => {}
+            EventsMode::CES => casper_event_standard::emit(Mint::new(
+                token_owner_key,
+                token_identifier.clone(),
+                token_metadata.clone(),
+            )),
+            EventsMode::CEP47 => record_cep47_event_dictionary(CEP47Event::Mint {
+                recipient: token_owner_key,
+                token_id: token_identifier.clone(),
+            }),
+        }
+        utils::add_page_entry_and_page_record(token_id.clone(), &owned_tokens_item_key, true);
     }
+    //Increment the count of owned tokens.
+    let updated_token_count =
+        match utils::get_dictionary_value_from_key::<u64>(TOKEN_COUNT, &owned_tokens_item_key) {
+            Some(balance) => balance + count,
+            None => count as u64,
+        };
+    utils::upsert_dictionary_value_from_key(
+        TOKEN_COUNT,
+        &owned_tokens_item_key,
+        updated_token_count,
+    );
     // Increment number_of_minted_tokens by one
     let number_of_minted_tokens_uref = utils::get_uref(
         NUMBER_OF_MINTED_TOKENS,
         NFTCoreError::MissingTotalTokenSupply,
         NFTCoreError::InvalidTotalTokenSupply,
     );
-    storage::write(number_of_minted_tokens_uref, next_index);
+    storage::write(number_of_minted_tokens_uref, minted_tokens_count + count);
+}
+
+// used for updating metadata url when ipfs is available
+#[no_mangle]
+pub extern "C" fn update_base_metadata() {
+    punk::only_owner_or_minter();
+    let new_base: String = runtime::get_named_arg("base_metadata_url");
+    let uref = utils::get_uref("base_metadata_url", NFTCoreError::MissingBaseMetadata, NFTCoreError::InvalidBaseMetadata);
+    storage::write(uref, new_base);
+}
+
+#[no_mangle]
+pub extern "C" fn update_metadata_url_for_tokens() {
+    punk::only_owner_or_minter();
+    let token_ids: Vec<u64> = runtime::get_named_arg("token_ids");
+    let base_metadata_url: String = utils::get_stored_value_with_user_errors::<String>(
+        "base_metadata_url",
+        NFTCoreError::MissingBaseMetadata,
+        NFTCoreError::InvalidBaseMetadata,
+    );    
+
+    for token_id in &token_ids {
+        let token_identifier: TokenIdentifier = TokenIdentifier::Index(token_id.clone());
+        let token_metadata = TokenMetadata {
+            name: "CasperPunks Generation 1".to_string(),
+            symbol: "CP-GEN-1".to_string(),
+            token_uri: base_metadata_url.clone() + &token_id.to_string(),
+            checksum: "".to_string()
+        };
+        let token_metadata: String = serde_json_wasm::to_string(&token_metadata).unwrap();
+        utils::upsert_dictionary_value_from_key(
+            METADATA_CEP78,
+            &token_identifier.get_dictionary_item_key(),
+            token_metadata.clone()
+        );
+
+        // emit event to notify explorer
+        casper_event_standard::emit(MetadataUpdated::new(
+            token_identifier,
+            token_metadata,
+        ));
+    }
 }
 
 // Marks token as burnt. This blocks any future call to transfer token.
@@ -1033,7 +1086,6 @@ pub extern "C" fn is_approved_for_all() {
 // Assigned.
 #[no_mangle]
 pub extern "C" fn transfer() {
-    punk_lootbox::only_active_transfer();
     // If we are in minter or assigned mode we are not allowed to transfer ownership of token, hence
     // we revert.
     if let OwnershipMode::Minter | OwnershipMode::Assigned =
@@ -2013,7 +2065,7 @@ fn generate_entry_points() -> EntryPoints {
         EntryPointType::Contract,
     );
 
-    let loot_box_entrypoints = punk_lootbox::entry_points();
+    let loot_box_entrypoints = punk::entry_points();
     for e in &loot_box_entrypoints {
         entry_points.add_entry_point(e.clone());
     }
@@ -2266,32 +2318,32 @@ fn install_contract() {
     .unwrap_or(0u8);
 
     let the_contract_owner: Key = utils::get_optional_named_arg_with_user_errors(
-        punk_lootbox::THE_CONTRACT_OWNER,
+        punk::THE_CONTRACT_OWNER,
         NFTCoreError::InvalidContractOwner,
     )
     .unwrap_or_revert();
     // let end_time: u64 = utils::get_named_arg_with_user_errors(
-    //     punk_lootbox::MINTING_END_TIME,
+    //     punk::MINTING_END_TIME,
     //     NFTCoreError::MissingMintingEnd,
     //     NFTCoreError::InvalidMintingEnd,
     // )
     // .unwrap_or_revert();
     // let start_time: u64 = utils::get_named_arg_with_user_errors(
-    //     punk_lootbox::MINTING_START_TIME,
+    //     punk::MINTING_START_TIME,
     //     NFTCoreError::MissingMintingStart,
     //     NFTCoreError::InvalidMintingStart,
     // )
     // .unwrap_or_revert();
 
     // let minting_price: U256 = utils::get_named_arg_with_user_errors(
-    //     punk_lootbox::MINTING_PRICE,
+    //     punk::MINTING_PRICE,
     //     NFTCoreError::MissingMintingPrice,
     //     NFTCoreError::InvalidMintingPrice,
     // )
     // .unwrap_or_revert();
 
     let contract_minter: Key = utils::get_named_arg_with_user_errors(
-        punk_lootbox::THE_CONTRACT_MINTER,
+        punk::THE_CONTRACT_MINTER,
         NFTCoreError::MissingContractOwner,
         NFTCoreError::InvalidContractOwner,
     )
@@ -2329,12 +2381,12 @@ fn install_contract() {
             ARG_OWNER_LOOKUP_MODE => reporting_mode,
             ARG_NFT_PACKAGE_KEY => nft_contract_package_hash.to_formatted_string(),
             ARG_EVENTS_MODE => events_mode,
-            punk_lootbox::THE_CONTRACT_OWNER => the_contract_owner,
-            punk_lootbox::THE_CONTRACT_MINTER => contract_minter,
-            // punk_lootbox::MINTING_START_TIME => start_time,
-            // punk_lootbox::MINTING_END_TIME => end_time,
-            // punk_lootbox::MINTING_PRICE => minting_price,
-            // punk_lootbox::CSPR_RECEIVER => cspr_receiver,
+            punk::THE_CONTRACT_OWNER => the_contract_owner,
+            punk::THE_CONTRACT_MINTER => contract_minter,
+            // punk::MINTING_START_TIME => start_time,
+            // punk::MINTING_END_TIME => end_time,
+            // punk::MINTING_PRICE => minting_price,
+            // punk::CSPR_RECEIVER => cspr_receiver,
 
 
         },

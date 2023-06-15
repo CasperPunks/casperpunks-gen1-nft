@@ -176,6 +176,8 @@ pub enum NFTCoreError {
     InvalidSrcPurse = 171,
     CanNotTransferCSPR = 172,
     InvalidContext = 173,
+    MissingBaseMetadata = 174,
+    InvalidBaseMetadata = 175,
 }
 
 impl From<NFTCoreError> for ApiError {
