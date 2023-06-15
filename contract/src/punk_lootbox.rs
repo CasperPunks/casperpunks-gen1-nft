@@ -1,13 +1,10 @@
-use crate::{error::NFTCoreError, utils, constants::WHITELISTED_USERS};
-use alloc::{string::{String}, vec, vec::*};
+use crate::{constants::WHITELISTED_USERS, error::NFTCoreError, utils, utils::u256_to_u512};
+use alloc::{string::String, vec, vec::*};
 use casper_contract::{
     contract_api::{runtime, storage, system::transfer_from_purse_to_account},
     unwrap_or_revert::UnwrapOrRevert,
 };
-use casper_types::{
-    CLType, EntryPoint, EntryPointAccess, EntryPointType, Key, U256, URef
-};
-use crate::utils::u256_to_u512;
+use casper_types::{CLType, EntryPoint, EntryPointAccess, EntryPointType, Key, URef, U256};
 
 pub const MINTING_START_TIME: &str = "minting_start_time";
 pub const MINTING_END_TIME: &str = "minting_end_time";
@@ -27,7 +24,10 @@ pub fn only_owner() {
 pub fn only_whitelisted(recipient: Key) {
     let dict_key = utils::encode_dictionary_item_key(recipient);
     let v = utils::get_dictionary_value_from_key::<bool>(WHITE_LIST_MAP, &dict_key);
-    utils::require(v.is_some() && v.unwrap() == true, NFTCoreError::NotWhitelisted);
+    utils::require(
+        v.is_some() && v.unwrap() == true,
+        NFTCoreError::NotWhitelisted,
+    );
 }
 
 pub fn owner_internal() -> Key {
@@ -107,18 +107,22 @@ pub fn take_cspr_from_minting() {
         ARG_SRC_PURSE,
         NFTCoreError::MissingSrcPurse,
         NFTCoreError::InvalidSrcPurse,
-    ).unwrap_or_revert();
-
-    let price: U256 = utils::get_stored_value_with_user_errors(MINTING_PRICE, NFTCoreError::MissingMintingPrice, NFTCoreError::InvalidMintingPrice); 
-    let cspr_receiver: Key = utils::get_stored_value_with_user_errors(CSPR_RECEIVER, NFTCoreError::MissingCSPRReceiver, NFTCoreError::InvalidCSPRReceiver);
-    let fee_receiver_pubkey = cspr_receiver.into_account().unwrap();
-    transfer_from_purse_to_account(
-        src_purse,
-        fee_receiver_pubkey,
-        u256_to_u512(price),
-        None,
     )
-    .unwrap_or_revert_with(NFTCoreError::CanNotTransferCSPR);
+    .unwrap_or_revert();
+
+    let price: U256 = utils::get_stored_value_with_user_errors(
+        MINTING_PRICE,
+        NFTCoreError::MissingMintingPrice,
+        NFTCoreError::InvalidMintingPrice,
+    );
+    let cspr_receiver: Key = utils::get_stored_value_with_user_errors(
+        CSPR_RECEIVER,
+        NFTCoreError::MissingCSPRReceiver,
+        NFTCoreError::InvalidCSPRReceiver,
+    );
+    let fee_receiver_pubkey = cspr_receiver.into_account().unwrap();
+    transfer_from_purse_to_account(src_purse, fee_receiver_pubkey, u256_to_u512(price), None)
+        .unwrap_or_revert_with(NFTCoreError::CanNotTransferCSPR);
 }
 
 pub fn minting_price_satisfied(provided_value: U256) {
@@ -134,21 +138,18 @@ pub fn minting_price_satisfied(provided_value: U256) {
 }
 
 pub fn init(contract_owner: Key) {
-    runtime::put_key(
-        THE_CONTRACT_OWNER,
-        storage::new_uref(contract_owner).into(),
-    );
+    runtime::put_key(THE_CONTRACT_OWNER, storage::new_uref(contract_owner).into());
 
-    let start_time: u64 = utils::get_named_arg_with_user_errors(
-        MINTING_START_TIME,
-        NFTCoreError::MissingMintingStart,
-        NFTCoreError::InvalidMintingStart,
-    )
-    .unwrap_or_revert();
     let end_time: u64 = utils::get_named_arg_with_user_errors(
         MINTING_END_TIME,
         NFTCoreError::MissingMintingEnd,
         NFTCoreError::InvalidMintingEnd,
+    )
+    .unwrap_or_revert();
+    let start_time: u64 = utils::get_named_arg_with_user_errors(
+        MINTING_START_TIME,
+        NFTCoreError::MissingMintingStart,
+        NFTCoreError::InvalidMintingStart,
     )
     .unwrap_or_revert();
 

@@ -9,8 +9,8 @@ mod error;
 mod events;
 mod metadata;
 mod modalities;
-mod utils;
 mod punk_lootbox;
+mod utils;
 
 extern crate alloc;
 
@@ -30,7 +30,7 @@ use core::convert::{TryFrom, TryInto};
 use casper_types::{
     contracts::NamedKeys, runtime_args, CLType, CLValue, ContractHash, ContractPackageHash,
     EntryPoint, EntryPointAccess, EntryPointType, EntryPoints, Key, KeyTag, Parameter, RuntimeArgs,
-    Tagged,
+    Tagged, U256,
 };
 
 use casper_contract::{
@@ -587,7 +587,6 @@ pub extern "C" fn mint() {
             caller
         };
     punk_lootbox::only_whitelisted(token_owner_key);
-
 
     let metadata_kinds: BTreeMap<NFTMetadataKind, Requirement> =
         utils::get_stored_value_with_user_errors(
@@ -2343,6 +2342,32 @@ fn install_contract() {
         NFTCoreError::InvalidContractOwner,
     )
     .unwrap_or_revert();
+    let end_time: u64 = utils::get_named_arg_with_user_errors(
+        punk_lootbox::MINTING_END_TIME,
+        NFTCoreError::MissingMintingEnd,
+        NFTCoreError::InvalidMintingEnd,
+    )
+    .unwrap_or_revert();
+    let start_time: u64 = utils::get_named_arg_with_user_errors(
+        punk_lootbox::MINTING_START_TIME,
+        NFTCoreError::MissingMintingStart,
+        NFTCoreError::InvalidMintingStart,
+    )
+    .unwrap_or_revert();
+
+    let minting_price: U256 = utils::get_named_arg_with_user_errors(
+        punk_lootbox::MINTING_PRICE,
+        NFTCoreError::MissingMintingPrice,
+        NFTCoreError::InvalidMintingPrice,
+    )
+    .unwrap_or_revert();
+
+    let cspr_receiver: Key = utils::get_named_arg_with_user_errors(
+        punk_lootbox::CSPR_RECEIVER,
+        NFTCoreError::MissingCSPRReceiver,
+        NFTCoreError::InvalidCSPRReceiver,
+    )
+    .unwrap_or_revert();
 
     // A sentinel string value which represents the entry for the addition
     // of a read only reference to the NFTs owned by the calling `Account` or `Contract`
@@ -2376,7 +2401,13 @@ fn install_contract() {
             ARG_OWNER_LOOKUP_MODE => reporting_mode,
             ARG_NFT_PACKAGE_KEY => nft_contract_package_hash.to_formatted_string(),
             ARG_EVENTS_MODE => events_mode,
-            punk_lootbox::THE_CONTRACT_OWNER => the_contract_owner
+            punk_lootbox::THE_CONTRACT_OWNER => the_contract_owner,
+            punk_lootbox::MINTING_START_TIME => start_time,
+            punk_lootbox::MINTING_END_TIME => end_time,
+            punk_lootbox::MINTING_PRICE => minting_price,
+            punk_lootbox::CSPR_RECEIVER => cspr_receiver,
+
+
         },
     );
 }
