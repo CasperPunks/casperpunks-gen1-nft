@@ -284,13 +284,13 @@ pub extern "C" fn mint() {
     let nft_owner_key = make_dictionary_item_key_for_account(nft_owner: Key);
 
     // Check if new_address already in dictionary
-    let is_wl = get_dictionary_value_from_key::<bool>(ADDRESSES_WHITELIST, &nft_owner_key).unwrap();
-    if is_wl != true {
-        runtime::revert(Error::InvalidContext);
-    }
-    if get_dictionary_value_from_key::<u8>(NFT_MINTED_NUMBER, &nft_owner_key).is_none() {
-        runtime::revert(Error::InvalidWhiteListAddress);
-    }
+    // let is_wl = get_dictionary_value_from_key::<bool>(ADDRESSES_WHITELIST,
+    // &nft_owner_key).unwrap(); if is_wl != true {
+    //     runtime::revert(Error::InvalidContext);
+    // }
+    // if get_dictionary_value_from_key::<u8>(NFT_MINTED_NUMBER, &nft_owner_key).is_none() {
+    //     runtime::revert(Error::InvalidWhiteListAddress);
+    // }
 
     let max_per_one: u8 = helpers::get_stored_value_with_user_errors(
         "max_per_one",
@@ -298,8 +298,10 @@ pub extern "C" fn mint() {
         Error::InvalidContext,
     );
 
-    let nft_minted: u8 = get_dictionary_value_from_key::<u8>(NFT_MINTED_NUMBER, &nft_owner_key)
-        .unwrap_or_revert_with(Error::CanotGetNftMintedNumber);
+    let nft_minted = match get_dictionary_value_from_key::<u8>(NFT_MINTED_NUMBER, &nft_owner_key) {
+        Some(minted) => minted as u8,
+        None => 0u8,
+    };
     if nft_minted > max_per_one {
         runtime::revert(Error::ReachMaximumNumberOfMinting);
     }
