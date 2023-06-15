@@ -18,7 +18,7 @@ use casper_types::{
     api_error,
     bytesrepr::{self, FromBytes, ToBytes},
     system::CallStackElement,
-    ApiError, CLTyped, ContractHash, Key, URef
+    ApiError, CLTyped, ContractHash, Key, URef,
 };
 
 use crate::{
@@ -843,4 +843,3 @@ pub fn set_key<T: ToBytes + CLTyped>(name: &str, value: T) {
         }
     }
 }
-
