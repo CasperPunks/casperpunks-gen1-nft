@@ -587,6 +587,7 @@ pub extern "C" fn mint() {
             caller
         };
     punk_lootbox::only_whitelisted(token_owner_key);
+    register_owner_internal(token_owner_key);
 
     let metadata_kinds: BTreeMap<NFTMetadataKind, Requirement> =
         utils::get_stored_value_with_user_errors(
@@ -1792,29 +1793,8 @@ pub extern "C" fn register_owner() {
             }
         };
 
-        let page_table_uref = utils::get_uref(
-            PAGE_TABLE,
-            NFTCoreError::MissingPageTableURef,
-            NFTCoreError::InvalidPageTableURef,
-        );
+        register_owner_internal(owner_key);
 
-        let owner_item_key = utils::encode_dictionary_item_key(owner_key);
-
-        if storage::dictionary_get::<Vec<bool>>(page_table_uref, &owner_item_key)
-            .unwrap_or_revert()
-            .is_none()
-        {
-            let page_table_width = utils::get_stored_value_with_user_errors::<u64>(
-                PAGE_LIMIT,
-                NFTCoreError::MissingPageLimit,
-                NFTCoreError::InvalidPageLimit,
-            );
-            storage::dictionary_put(
-                page_table_uref,
-                &owner_item_key,
-                vec![false; page_table_width as usize],
-            );
-        }
         let collection_name = utils::get_stored_value_with_user_errors::<String>(
             COLLECTION_NAME,
             NFTCoreError::MissingCollectionName,
@@ -1826,6 +1806,32 @@ pub extern "C" fn register_owner() {
             NFTCoreError::InvalidCep78InvalidHash,
         ));
         runtime::ret(CLValue::from_t((collection_name, package_uref)).unwrap_or_revert())
+    }
+}
+
+fn register_owner_internal(owner_key: Key) {
+    let page_table_uref = utils::get_uref(
+        PAGE_TABLE,
+        NFTCoreError::MissingPageTableURef,
+        NFTCoreError::InvalidPageTableURef,
+    );
+
+    let owner_item_key = utils::encode_dictionary_item_key(owner_key);
+
+    if storage::dictionary_get::<Vec<bool>>(page_table_uref, &owner_item_key)
+        .unwrap_or_revert()
+        .is_none()
+    {
+        let page_table_width = utils::get_stored_value_with_user_errors::<u64>(
+            PAGE_LIMIT,
+            NFTCoreError::MissingPageLimit,
+            NFTCoreError::InvalidPageLimit,
+        );
+        storage::dictionary_put(
+            page_table_uref,
+            &owner_item_key,
+            vec![false; page_table_width as usize],
+        );
     }
 }
 
