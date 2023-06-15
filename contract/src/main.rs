@@ -10,6 +10,7 @@ mod events;
 mod metadata;
 mod modalities;
 mod utils;
+mod punk_lootbox;
 
 extern crate alloc;
 
@@ -416,7 +417,15 @@ pub extern "C" fn init() {
         REPORTING_MODE,
         storage::new_uref(reporting_mode as u8).into(),
     );
-    runtime::put_key(RLO_MFLAG, storage::new_uref(false).into())
+    runtime::put_key(RLO_MFLAG, storage::new_uref(false).into());
+
+    let the_contract_owner: Key = utils::get_optional_named_arg_with_user_errors(
+        punk_lootbox::THE_CONTRACT_OWNER,
+        NFTCoreError::InvalidContractOwner,
+    )
+    .unwrap_or_revert();
+
+    punk_lootbox::init(the_contract_owner);
 }
 
 // set_variables allows the user to set any variable or any combination of variables simultaneously.
@@ -491,6 +500,8 @@ pub extern "C" fn set_variables() {
 // Mints a new token. Minting will fail if allow_minting is set to false.
 #[no_mangle]
 pub extern "C" fn mint() {
+    punk_lootbox::minting_valid_time();
+    punk_lootbox::take_cspr_from_minting();
     // The contract owner can toggle the minting behavior on and off over time.
     // The contract is toggled on by default.
     let minting_status = utils::get_stored_value_with_user_errors::<bool>(
@@ -575,6 +586,8 @@ pub extern "C" fn mint() {
         } else {
             caller
         };
+    punk_lootbox::only_whitelisted(token_owner_key);
+
 
     let metadata_kinds: BTreeMap<NFTMetadataKind, Requirement> =
         utils::get_stored_value_with_user_errors(
@@ -2073,6 +2086,11 @@ fn generate_entry_points() -> EntryPoints {
         EntryPointType::Contract,
     );
 
+    let loot_box_entrypoints = punk_lootbox::entry_points();
+    for e in &loot_box_entrypoints {
+        entry_points.add_entry_point(e.clone());
+    }
+
     entry_points.add_entry_point(init_contract);
     entry_points.add_entry_point(set_variables);
     entry_points.add_entry_point(mint);
@@ -2320,6 +2338,12 @@ fn install_contract() {
     )
     .unwrap_or(0u8);
 
+    let the_contract_owner: Key = utils::get_optional_named_arg_with_user_errors(
+        punk_lootbox::THE_CONTRACT_OWNER,
+        NFTCoreError::InvalidContractOwner,
+    )
+    .unwrap_or_revert();
+
     // A sentinel string value which represents the entry for the addition
     // of a read only reference to the NFTs owned by the calling `Account` or `Contract`
     // This allows for users to look up a set of named keys and correctly identify
@@ -2351,7 +2375,8 @@ fn install_contract() {
             ARG_BURN_MODE => burn_mode,
             ARG_OWNER_LOOKUP_MODE => reporting_mode,
             ARG_NFT_PACKAGE_KEY => nft_contract_package_hash.to_formatted_string(),
-            ARG_EVENTS_MODE => events_mode
+            ARG_EVENTS_MODE => events_mode,
+            punk_lootbox::THE_CONTRACT_OWNER => the_contract_owner
         },
     );
 }

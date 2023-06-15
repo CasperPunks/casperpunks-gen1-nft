@@ -110,3 +110,4 @@ pub const MAX_TOTAL_TOKEN_SUPPLY: u64 = 1_000_000u64;
 
 pub const ACCESS_KEY_NAME_1_0_0: &str = "nft_contract_package_access";
 pub const HASH_KEY_NAME_1_0_0: &str = "nft_contract_package";
+pub const WHITELISTED_USERS: &str = "whitelisted_users";

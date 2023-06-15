@@ -18,7 +18,7 @@ use casper_types::{
     api_error,
     bytesrepr::{self, FromBytes, ToBytes},
     system::CallStackElement,
-    ApiError, CLTyped, ContractHash, Key, URef,
+    ApiError, CLTyped, ContractHash, Key, URef, U512, U256,
 };
 
 use crate::{
@@ -824,3 +824,33 @@ pub fn requires_rlo_migration() -> bool {
         },
     }
 }
+
+pub fn current_block_timestamp_sec() -> u64 {
+    u64::from(runtime::get_blocktime()).checked_rem(u64::MAX).unwrap() / 1000
+}
+
+pub fn require(v: bool, e: NFTCoreError) {
+    if !v {
+        runtime::revert(e);
+    }
+}
+
+pub fn set_key<T: ToBytes + CLTyped>(name: &str, value: T) {
+    match runtime::get_key(name) {
+        Some(key) => {
+            let key_ref = key.try_into().unwrap_or_revert();
+            storage::write(key_ref, value);
+        }
+        None => {
+            let key = storage::new_uref(value).into();
+            runtime::put_key(name, key);
+        }
+    }
+}
+
+pub fn u256_to_u512(nb: U256) -> U512 {
+    let mut b = [0u8; 32];
+    nb.to_big_endian(&mut b);
+    U512::from_big_endian(&b)
+}
+
