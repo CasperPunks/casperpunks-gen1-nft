@@ -30,7 +30,7 @@ use core::convert::{TryFrom, TryInto};
 use casper_types::{
     contracts::NamedKeys, runtime_args, CLType, CLValue, ContractHash, ContractPackageHash,
     EntryPoint, EntryPointAccess, EntryPointType, EntryPoints, Key, KeyTag, Parameter, RuntimeArgs,
-    Tagged, U256,
+    Tagged,
 };
 
 use casper_contract::{
@@ -557,11 +557,9 @@ pub extern "C" fn mint() {
 
     // The contract's ownership behavior (determined at installation) determines,
     // who owns the NFT we are about to mint.()
-    let ownership_mode = utils::get_ownership_mode().unwrap_or_revert();
     let caller = utils::get_verified_caller().unwrap_or_revert();
     let token_owner_keys: Vec<Key> = runtime::get_named_arg(ARG_TOKEN_OWNERS);
     let number_of_boxs: Vec<u8> = runtime::get_named_arg(ARG_NUMBER_OF_BOXS);
-    // punk_lootbox::only_whitelisted(token_owner_key);
 
     if token_owner_keys.len() != number_of_boxs.len() {
         runtime::revert(NFTCoreError::InvalidContext);
@@ -569,61 +567,31 @@ pub extern "C" fn mint() {
 
     let mut next_index: u64 = minted_tokens_count.clone();
 
+    let token_metadata = utils::get_named_arg_with_user_errors::<String>(
+        ARG_TOKEN_META_DATA,
+        NFTCoreError::MissingTokenMetaData,
+        NFTCoreError::InvalidTokenMetaData,
+    )
+    .unwrap_or_revert();
+
+    let events_mode: EventsMode =
+        EventsMode::try_from(utils::get_stored_value_with_user_errors::<u8>(
+            EVENTS_MODE,
+            NFTCoreError::MissingEventsMode,
+            NFTCoreError::InvalidEventsMode,
+        ))
+        .unwrap_or_revert();
+
     for n in 0..token_owner_keys.len() {
         let token_owner_key: Key = token_owner_keys[n];
         let number_of_box: u8 = number_of_boxs[n];
 
         register_owner_internal(token_owner_key);
+        let owned_tokens_item_key = utils::encode_dictionary_item_key(token_owner_key);
 
-        for m in 0..number_of_box {
-            let metadata_kinds: BTreeMap<NFTMetadataKind, Requirement> =
-                utils::get_stored_value_with_user_errors(
-                    NFT_METADATA_KINDS,
-                    NFTCoreError::MissingNFTMetadataKind,
-                    NFTCoreError::InvalidNFTMetadataKind,
-                );
-            let token_metadata = utils::get_named_arg_with_user_errors::<String>(
-                ARG_TOKEN_META_DATA,
-                NFTCoreError::MissingTokenMetaData,
-                NFTCoreError::InvalidTokenMetaData,
-            )
-            .unwrap_or_revert();
-            let identifier_mode: NFTIdentifierMode =
-                utils::get_stored_value_with_user_errors::<u8>(
-                    IDENTIFIER_MODE,
-                    NFTCoreError::MissingIdentifierMode,
-                    NFTCoreError::InvalidIdentifierMode,
-                )
-                .try_into()
-                .unwrap_or_revert();
+        for _ in 0..number_of_box {
             // This is the token ID.
-            let token_identifier: TokenIdentifier = match identifier_mode {
-                NFTIdentifierMode::Ordinal => TokenIdentifier::Index(next_index.clone()),
-                NFTIdentifierMode::Hash => TokenIdentifier::Hash(base16::encode_lower(
-                    &runtime::blake2b(token_metadata.clone()),
-                )),
-            };
-            for (metadata_kind, required) in metadata_kinds {
-                if required == Requirement::Unneeded {
-                    continue;
-                }
-                let token_metadata_validation =
-                    metadata::validate_metadata(&metadata_kind, token_metadata.clone());
-                match token_metadata_validation {
-                    Ok(validated_token_metadata) => {
-                        utils::upsert_dictionary_value_from_key(
-                            &metadata::get_metadata_dictionary_name(&metadata_kind),
-                            &token_identifier.get_dictionary_item_key(),
-                            validated_token_metadata,
-                        );
-                    }
-                    Err(err) => {
-                        if required == Requirement::Required {
-                            runtime::revert(err);
-                        }
-                    }
-                }
-            }
+            let token_identifier = TokenIdentifier::Index(next_index.clone());
             utils::upsert_dictionary_value_from_key(
                 TOKEN_OWNERS,
                 &token_identifier.get_dictionary_item_key(),
@@ -634,74 +602,46 @@ pub extern "C" fn mint() {
                 &token_identifier.get_dictionary_item_key(),
                 caller,
             );
-            let owned_tokens_item_key = utils::encode_dictionary_item_key(token_owner_key);
-            if let NFTIdentifierMode::Hash = identifier_mode {
-                // Update the forward and reverse trackers
-                utils::insert_hash_id_lookups(next_index, token_identifier.clone());
-            }
-            //Increment the count of owned tokens.
-            let updated_token_count = match utils::get_dictionary_value_from_key::<u64>(
-                TOKEN_COUNT,
-                &owned_tokens_item_key,
-            ) {
-                Some(balance) => balance + 1u64,
-                None => 1u64,
-            };
-            utils::upsert_dictionary_value_from_key(
-                TOKEN_COUNT,
-                &owned_tokens_item_key,
-                updated_token_count,
-            );
+
             // Increment number_of_minted_tokens by one
-            let number_of_minted_tokens_uref = utils::get_uref(
-                NUMBER_OF_MINTED_TOKENS,
-                NFTCoreError::MissingTotalTokenSupply,
-                NFTCoreError::InvalidTotalTokenSupply,
-            );
             next_index = next_index + 1u64;
-            storage::write(number_of_minted_tokens_uref, next_index);
             // Emit Mint event.
-            let events_mode: EventsMode =
-                EventsMode::try_from(utils::get_stored_value_with_user_errors::<u8>(
-                    EVENTS_MODE,
-                    NFTCoreError::MissingEventsMode,
-                    NFTCoreError::InvalidEventsMode,
-                ))
-                .unwrap_or_revert();
+
             match events_mode {
                 EventsMode::NoEvents => {}
                 EventsMode::CES => casper_event_standard::emit(Mint::new(
                     token_owner_key,
                     token_identifier.clone(),
-                    token_metadata,
+                    token_metadata.clone(),
                 )),
                 EventsMode::CEP47 => record_cep47_event_dictionary(CEP47Event::Mint {
                     recipient: token_owner_key,
                     token_id: token_identifier.clone(),
                 }),
             }
-            if let OwnerReverseLookupMode::Complete = utils::get_reporting_mode() {
-                if (NFTIdentifierMode::Hash == identifier_mode)
-                    && utils::should_migrate_token_hashes(token_owner_key)
-                {
-                    utils::migrate_token_hashes(token_owner_key)
-                }
-                let (page_table_entry, page_uref) = utils::add_page_entry_and_page_record(
-                    next_index - 1u64,
-                    &owned_tokens_item_key,
-                    true,
-                );
-                let receipt_string = utils::get_receipt_name(page_table_entry);
-                let receipt_address = Key::dictionary(page_uref, owned_tokens_item_key.as_bytes());
-                let token_identifier_string = token_identifier.get_dictionary_item_key();
-
-                let receipt =
-                    CLValue::from_t((receipt_string, receipt_address, token_identifier_string))
-                        .unwrap_or_revert_with(NFTCoreError::FailedToConvertToCLValue);
-                // runtime::ret(receipt)
-            }
+            utils::add_page_entry_and_page_record(next_index - 1u64, &owned_tokens_item_key, true);
         }
+        //Increment the count of owned tokens.
+        let updated_token_count = match utils::get_dictionary_value_from_key::<u64>(
+            TOKEN_COUNT,
+            &owned_tokens_item_key,
+        ) {
+            Some(balance) => balance + (number_of_box as u64),
+            None => number_of_box as u64,
+        };
+        utils::upsert_dictionary_value_from_key(
+            TOKEN_COUNT,
+            &owned_tokens_item_key,
+            updated_token_count,
+        );
     }
+    // Increment number_of_minted_tokens by one
+    let number_of_minted_tokens_uref = utils::get_uref(
+        NUMBER_OF_MINTED_TOKENS,
+        NFTCoreError::MissingTotalTokenSupply,
+        NFTCoreError::InvalidTotalTokenSupply,
+    );
+    storage::write(number_of_minted_tokens_uref, next_index);
 }
 
 // Marks token as burnt. This blocks any future call to transfer token.
