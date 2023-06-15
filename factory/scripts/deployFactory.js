@@ -32,7 +32,7 @@ const {
   CHAIN_NAME,
   WASM_PATH
 } = process.env
-let paymentAmount = '140000000000' //140
+let paymentAmount = '180000000000' //140
 
 let privateKeyPem = `
 -----BEGIN PRIVATE KEY-----
@@ -44,13 +44,15 @@ let privateKeyBuffer = Keys.Ed25519.parsePrivateKey(Keys.Ed25519.readBase64WithP
 let publicKey = Keys.Ed25519.privateToPublicKey(Uint8Array.from(privateKeyBuffer))
 let KEYS = new Keys.Ed25519.parseKeyPair(publicKey, Uint8Array.from(privateKeyBuffer))
 console.log('pubkey', KEYS.accountHex())
-let contract_key_name = "csp_factory_contract"
-let contract_owner = "02038df1cff6b55615858b1acd2ebcce98db164f88cf88919c7b045268571cc49cb7" // MPC
+let contract_key_name = "box_factory"
 let dev = "017e80955a6d493a4a4b9f1b5dd23d2edcdc2c8b00fcd9689f2f735f501bd088c5" // ABB
-let wcspr = "30070685c86e7fb410839f1ffc86de2181d4776926248e0946350615929b1ce2"
-let wcsprHash = new CLByteArray(
-  Uint8Array.from(Buffer.from(wcspr, "hex"))
+let feeReceiver = "0161e83e521241390a555224f3455c192712f9c74eb776663ed4a909a9c87efffc"
+
+let boxPKHash = "27331e391e05f201a57e40ed18ea68f5438e0a5d50800de2293e0f29429be6e4"
+boxPKHash = new CLByteArray(
+  Uint8Array.from(Buffer.from(boxPKHash, "hex"))
 );
+let boxKey = createRecipientAddress(boxPKHash)
 
 const test = async () => {
 
@@ -58,19 +60,21 @@ const test = async () => {
     "csp_factory_contract": CLValueBuilder.string(contract_key_name),
     "contract_owner": createRecipientAddress(CLPublicKey.fromHex(dev)), //ABB
     "dev": createRecipientAddress(CLPublicKey.fromHex(dev)), // ABB
-    "fee_receiver": createRecipientAddress(CLPublicKey.fromHex(dev)), // ABB
-    "mint_fee": CLValueBuilder.u256("100000000000"), // 8 cspr
-    "total_box": CLValueBuilder.u64("1500"),
-    "max_per_one": CLValueBuilder.u8("6"),
+    "fee_receiver": createRecipientAddress(CLPublicKey.fromHex(feeReceiver)), // ABB
+    "mint_fee": CLValueBuilder.u256("3000000000000"), // 8 cspr
+    "total_box": CLValueBuilder.u64("1000"),
+    "max_per_one": CLValueBuilder.u8("10"),
+    "minting_start_time": CLValueBuilder.u64("1681300727"),
+    "minting_end_time": CLValueBuilder.u64(1681300727 + 1800),
+    "mint_fee_r3": CLValueBuilder.u256("4000000000000"), // 8 cspr
+    "total_box_r3": CLValueBuilder.u64("4000"),
+    "max_per_one_r3": CLValueBuilder.u8("25"),
+    "minting_start_time_r3": CLValueBuilder.u64(1681300727 + 900),
+    "nft_contract_package": boxKey
+
   });
 
   console.log("A")
-  // console.log(CHAIN_NAME)
-  // console.log(NODE_ADDRESS)
-  // console.log(KEYS)
-  // console.log(runtimeArgs)
-  // console.log(paymentAmount)
-  // console.log(WASM_PATH)
 
   let hash = await installContract(
     CHAIN_NAME,
