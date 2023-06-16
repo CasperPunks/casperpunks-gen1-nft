@@ -1889,13 +1889,9 @@ fn generate_entry_points() -> EntryPoints {
         ENTRY_POINT_MINT,
         vec![
             Parameter::new(ARG_TOKEN_OWNER, CLType::Key),
-            Parameter::new(ARG_TOKEN_META_DATA, CLType::String),
+            Parameter::new("count", CLType::U64),
         ],
-        CLType::Tuple3([
-            Box::new(CLType::String),
-            Box::new(CLType::Key),
-            Box::new(CLType::String),
-        ]),
+        CLType::Unit,
         EntryPointAccess::Public,
         EntryPointType::Contract,
     );
