@@ -12,7 +12,9 @@ use serde::{Deserialize, Serialize};
 
 use casper_engine_test_support::ExecuteRequestBuilder;
 use casper_execution_engine::core::engine_state::ExecuteRequest;
-use casper_types::{account::AccountHash, bytesrepr::Bytes, CLValue, ContractHash, RuntimeArgs};
+use casper_types::{
+    account::AccountHash, bytesrepr::Bytes, CLValue, ContractHash, Key, RuntimeArgs,
+};
 
 // Modalities reexports.
 pub use contract::modalities::{
@@ -142,6 +144,7 @@ pub(crate) struct InstallerRequestBuilder {
     additional_required_metadata: CLValue,
     optional_metadata: CLValue,
     events_mode: CLValue,
+    the_contract_minter: CLValue,
 }
 
 impl InstallerRequestBuilder {
@@ -181,11 +184,17 @@ impl InstallerRequestBuilder {
             additional_required_metadata: CLValue::from_t(Bytes::new()).unwrap(),
             optional_metadata: CLValue::from_t(Bytes::new()).unwrap(),
             events_mode: CLValue::from_t(EventsMode::CES as u8).unwrap(),
+            the_contract_minter: CLValue::from_t(Key::from(AccountHash::default())).unwrap(),
         }
     }
 
     pub(crate) fn with_account_hash(mut self, account_hash: AccountHash) -> Self {
         self.account_hash = account_hash;
+        self
+    }
+
+    pub(crate) fn with_contract_minter(mut self, minter: Key) -> Self {
+        self.the_contract_minter = CLValue::from_t(minter).unwrap();
         self
     }
 
@@ -332,6 +341,7 @@ impl InstallerRequestBuilder {
         runtime_args.insert_cl_value(ARG_OWNER_LOOKUP_MODE, self.reporting_mode);
         runtime_args.insert_cl_value(ARG_NAMED_KEY_CONVENTION, self.named_key_convention);
         runtime_args.insert_cl_value(ARG_EVENTS_MODE, self.events_mode);
+        runtime_args.insert_cl_value("the_contract_minter", self.the_contract_minter);
         runtime_args.insert_cl_value(
             ARG_ADDITIONAL_REQUIRED_METADATA,
             self.additional_required_metadata,

@@ -2319,26 +2319,8 @@ fn install_contract() {
         NFTCoreError::InvalidContractOwner,
     )
     .unwrap_or_revert();
-    // let end_time: u64 = utils::get_named_arg_with_user_errors(
-    //     punk::MINTING_END_TIME,
-    //     NFTCoreError::MissingMintingEnd,
-    //     NFTCoreError::InvalidMintingEnd,
-    // )
-    // .unwrap_or_revert();
-    // let start_time: u64 = utils::get_named_arg_with_user_errors(
-    //     punk::MINTING_START_TIME,
-    //     NFTCoreError::MissingMintingStart,
-    //     NFTCoreError::InvalidMintingStart,
-    // )
-    // .unwrap_or_revert();
 
-    // let minting_price: U256 = utils::get_named_arg_with_user_errors(
-    //     punk::MINTING_PRICE,
-    //     NFTCoreError::MissingMintingPrice,
-    //     NFTCoreError::InvalidMintingPrice,
-    // )
-    // .unwrap_or_revert();
-
+    runtime::print("here");
     let contract_minter: Key = utils::get_named_arg_with_user_errors(
         punk::THE_CONTRACT_MINTER,
         NFTCoreError::MissingContractOwner,

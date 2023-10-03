@@ -44,7 +44,7 @@ build-contracts: build-payment-contract build-factory build-payment-contract-fac
 	wasm-strip client/updated_receipts/target/wasm32-unknown-unknown/release/updated_receipts.wasm
 	wasm-strip test-contracts/minting_contract/target/wasm32-unknown-unknown/release/minting_contract.wasm
 
-setup-test: build-contract build-payment-contract
+setup-test: build-contracts build-payment-contract
 	mkdir -p tests/wasm
 	mkdir -p tests/wasm/1_0_0; curl -L https://github.com/casper-ecosystem/cep-78-enhanced-nft/releases/download/v1.0.0/cep-78-wasm.tar.gz | tar zxv -C tests/wasm/1_0_0/
 	mkdir -p tests/wasm/1_1_0; curl -L https://github.com/casper-ecosystem/cep-78-enhanced-nft/releases/download/v1.1.0/cep-78-wasm.tar.gz | tar zxv -C tests/wasm/1_1_0/
@@ -61,6 +61,9 @@ setup-test: build-contract build-payment-contract
 
 test: setup-test
 	cd tests && cargo test
+
+test-one: setup-test
+	cd tests && cargo test should_install_contract -- --nocapture
 
 clippy:
 	cd contract && cargo clippy --target wasm32-unknown-unknown --bins -- -D warnings
