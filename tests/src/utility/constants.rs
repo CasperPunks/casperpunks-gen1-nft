@@ -10,7 +10,6 @@ pub const MINTING_CONTRACT_WASM: &str = "minting_contract.wasm";
 pub const NFT_CONTRACT_WASM: &str = "contract.wasm";
 pub const OWNER_OF_SESSION_WASM: &str = "owner_of_call.wasm";
 pub const TRANSFER_SESSION_WASM: &str = "transfer_call.wasm";
-pub const UPDATED_RECEIPTS_WASM: &str = "updated_receipts.wasm";
 
 pub const ARG_IS_HASH_IDENTIFIER_MODE: &str = "is_hash_identifier_mode";
 pub const ARG_KEY_NAME: &str = "key_name";
@@ -49,10 +48,4 @@ pub const TEST_PRETTY_UPDATED_CEP78_METADATA: &str = r#"{
   "token_uri": "https://www.foobar.com",
   "checksum": "fda4feaa137e83972db628e521c92159f5dc253da1565c9da697b8ad845a0788"
 }"#;
-pub const TEST_COMPACT_META_DATA: &str =
-    r#"{"name": "John Doe","symbol": "abc","token_uri": "https://www.barfoo.com"}"#;
-pub const MALFORMED_META_DATA: &str = r#"{
-  "name": "John Doe",
-  "symbol": abc,
-  "token_uri": "https://www.barfoo.com"
-}"#;
+

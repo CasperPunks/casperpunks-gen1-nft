@@ -36,21 +36,19 @@ pub extern "C" fn call() {
             nft_contract_hash,
             ENTRY_POINT_REGISTER_OWNER,
             runtime_args! {
-                ARG_TOKEN_OWNER => token_owner
+                ARG_TOKEN_OWNER => token_owner,
             },
         );
-        runtime::put_key(&register_name, package_uref.into())
+        runtime::put_key(&register_name, package_uref.into());
     }
 
-    let (receipt_name, owned_tokens_dictionary_key, _token_id_string) =
-        runtime::call_contract::<(String, Key, String)>(
-            nft_contract_hash,
-            ENTRY_POINT_MINT,
-            runtime_args! {
-                ARG_TOKEN_OWNER => token_owner,
-                ARG_TOKEN_META_DATA => token_metadata,
-            },
-        );
-
-    runtime::put_key(&receipt_name, owned_tokens_dictionary_key)
+    let _: () = runtime::call_contract(
+        nft_contract_hash,
+        ENTRY_POINT_MINT,
+        runtime_args! {
+            ARG_TOKEN_OWNER => token_owner,
+            ARG_TOKEN_META_DATA => token_metadata,
+            "count" => 1_u64
+        },
+    );
 }

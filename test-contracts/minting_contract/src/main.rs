@@ -56,18 +56,15 @@ pub extern "C" fn mint() {
                 ARG_TOKEN_OWNER => token_owner,
             },
         );
-
-        let (collection_name, owned_tokens_dictionary_key, _token_id_string) =
-            runtime::call_contract::<(String, Key, String)>(
-                nft_contract_hash,
-                ENTRY_POINT_MINT,
-                runtime_args! {
-                    ARG_TOKEN_OWNER => token_owner,
-                    ARG_TOKEN_META_DATA => token_metadata,
-                },
-            );
-
-        runtime::put_key(&collection_name, owned_tokens_dictionary_key)
+        runtime::call_contract::<()>(
+            nft_contract_hash,
+            ENTRY_POINT_MINT,
+            runtime_args! {
+                ARG_TOKEN_OWNER => token_owner,
+                ARG_TOKEN_META_DATA => token_metadata,
+                "count" => 1_u64,
+            },
+        );
     } else {
         runtime::call_contract::<()>(
             nft_contract_hash,
@@ -75,6 +72,7 @@ pub extern "C" fn mint() {
             runtime_args! {
                 ARG_TOKEN_OWNER => token_owner,
                 ARG_TOKEN_META_DATA => token_metadata,
+                "count" => 1_u64,
             },
         );
     }

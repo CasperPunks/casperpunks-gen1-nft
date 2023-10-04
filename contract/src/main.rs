@@ -817,7 +817,7 @@ pub extern "C" fn approve() {
     if let NFTIdentifierMode::Ordinal = identifier_mode {
         // Revert if token_id is out of bounds
         if let TokenIdentifier::Index(index) = &token_id {
-            if *index >= number_of_minted_tokens {
+            if *index > number_of_minted_tokens {
                 runtime::revert(NFTCoreError::InvalidTokenIdentifier);
             }
         }
@@ -862,7 +862,6 @@ pub extern "C" fn approve() {
         )
         .unwrap_or_revert(),
     };
-
     // If token owner or operator tries to approve itself that's probably a mistake and we revert.
     if caller == spender {
         runtime::revert(NFTCoreError::InvalidAccount);
@@ -926,7 +925,7 @@ pub extern "C" fn revoke() {
     if let NFTIdentifierMode::Ordinal = identifier_mode {
         // Revert if token_id is out of bounds
         if let TokenIdentifier::Index(index) = &token_id {
-            if *index >= number_of_minted_tokens {
+            if *index > number_of_minted_tokens {
                 runtime::revert(NFTCoreError::InvalidTokenIdentifier);
             }
         }
@@ -1329,7 +1328,7 @@ pub extern "C" fn owner_of() {
 
     if let NFTIdentifierMode::Ordinal = identifier_mode {
         // Revert if token_id is out of bounds
-        if token_identifier.get_index().unwrap_or_revert() >= number_of_minted_tokens {
+        if token_identifier.get_index().unwrap_or_revert() > number_of_minted_tokens {
             runtime::revert(NFTCoreError::InvalidTokenIdentifier);
         }
     }
@@ -1365,10 +1364,14 @@ pub extern "C" fn metadata() {
     .unwrap_or_revert();
 
     let token_identifier = utils::get_token_identifier_from_runtime_args(&identifier_mode);
-
+    runtime::print(&format!(
+        "metadata {:?}, {:?}",
+        number_of_minted_tokens,
+        token_identifier.get_index()
+    ));
     if let NFTIdentifierMode::Ordinal = identifier_mode {
         // Revert if token_id is out of bounds
-        if token_identifier.get_index().unwrap_or_revert() >= number_of_minted_tokens {
+        if token_identifier.get_index().unwrap_or_revert() > number_of_minted_tokens {
             runtime::revert(NFTCoreError::InvalidTokenIdentifier);
         }
     }
@@ -1422,7 +1425,7 @@ pub extern "C" fn get_approved() {
 
     if let NFTIdentifierMode::Ordinal = identifier_mode {
         // Revert if token_id is out of bounds
-        if token_identifier.get_index().unwrap_or_revert() >= number_of_minted_tokens {
+        if token_identifier.get_index().unwrap_or_revert() > number_of_minted_tokens {
             runtime::revert(NFTCoreError::InvalidTokenIdentifier);
         }
     }
@@ -2320,7 +2323,6 @@ fn install_contract() {
     )
     .unwrap_or_revert();
 
-    runtime::print("here");
     let contract_minter: Key = utils::get_named_arg_with_user_errors(
         punk::THE_CONTRACT_MINTER,
         NFTCoreError::MissingContractOwner,
@@ -2362,12 +2364,6 @@ fn install_contract() {
             ARG_EVENTS_MODE => events_mode,
             punk::THE_CONTRACT_OWNER => the_contract_owner,
             punk::THE_CONTRACT_MINTER => contract_minter,
-            // punk::MINTING_START_TIME => start_time,
-            // punk::MINTING_END_TIME => end_time,
-            // punk::MINTING_PRICE => minting_price,
-            // punk::CSPR_RECEIVER => cspr_receiver,
-
-
         },
     );
 }
@@ -2447,7 +2443,6 @@ pub extern "C" fn call() {
         .unwrap_or(NamedKeyConventionMode::DerivedFromCollectionName as u8)
         .try_into()
         .unwrap_or_revert();
-
     match convention_mode {
         NamedKeyConventionMode::DerivedFromCollectionName => install_contract(),
         NamedKeyConventionMode::V1_0Standard => migrate_contract(

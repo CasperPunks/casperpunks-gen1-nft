@@ -1,16 +1,14 @@
 use std::fmt::Debug;
 
 use crate::utility::constants::{
-    ARG_KEY_NAME, ARG_NFT_CONTRACT_HASH, MINTING_CONTRACT_NAME, PAGE_SIZE,
+    ARG_KEY_NAME, ARG_NFT_CONTRACT_HASH, MINTING_CONTRACT_NAME, PAGE_SIZE, 
 };
 use blake2::{
     digest::{Update, VariableOutput},
     VarBlake2b,
 };
-use contract::constants::{HASH_KEY_NAME_1_0_0, INDEX_BY_HASH, PREFIX_PAGE_DICTIONARY};
-use rand::prelude::*;
+use contract::constants::HASH_KEY_NAME_1_0_0;
 use serde::{Deserialize, Serialize};
-use sha256::digest;
 
 use super::{constants::CONTRACT_NAME, installer_request_builder::InstallerRequestBuilder};
 use casper_engine_test_support::{
@@ -26,9 +24,10 @@ use casper_types::{
     bytesrepr::{Bytes, FromBytes},
     runtime_args,
     system::{handle_payment::ARG_TARGET, mint::ARG_ID},
-    ApiError, CLTyped, CLValueError, ContractHash, ContractPackageHash, Key, PublicKey,
+    ApiError, CLTyped, ContractHash, ContractPackageHash, Key, PublicKey,
     RuntimeArgs, SecretKey, URef, BLAKE2B_DIGEST_LENGTH,
 };
+use contract::constants::PREFIX_PAGE_DICTIONARY;
 
 pub(crate) fn get_nft_contract_hash(
     builder: &WasmTestBuilder<InMemoryGlobalState>,
@@ -70,6 +69,18 @@ pub(crate) fn get_minting_contract_hash(
         .expect("must get hash_addr");
 
     ContractHash::new(minting_contract_hash)
+}
+
+pub(crate) fn get_minting_contract_package(builder: &WasmTestBuilder<InMemoryGlobalState>) -> Key {
+    let minting_contract_package = builder
+        .get_expected_account(*DEFAULT_ACCOUNT_ADDR)
+        .named_keys()
+        .get("minting_contract_package_hash")
+        .expect("must have minting contract hash entry in named keys")
+        .into_hash()
+        .expect("must get hash_addr");
+
+    Key::Hash(minting_contract_package)
 }
 
 pub(crate) fn get_dictionary_value_from_key<T: CLTyped + FromBytes>(
@@ -225,21 +236,6 @@ pub(crate) struct CEP78Metadata {
     checksum: String,
 }
 
-impl CEP78Metadata {
-    pub(crate) fn new(name: String, token_uri: String, checksum: String) -> Self {
-        Self {
-            name,
-            token_uri,
-            checksum,
-        }
-    }
-
-    pub(crate) fn with_random_checksum(name: String, token_uri: String) -> Self {
-        let checksum: String = digest(random::<u64>().to_string());
-        Self::new(name, token_uri, checksum)
-    }
-}
-
 fn make_page_dictionary_item_key(token_owner_key: &Key) -> String {
     match token_owner_key {
         Key::Account(token_owner_account_hash) => token_owner_account_hash.to_string(),
@@ -262,35 +258,6 @@ pub(crate) fn get_token_page_by_id(
         &format!("{PREFIX_PAGE_DICTIONARY}_{page_number}"),
         &token_page_item_key,
     )
-}
-
-pub(crate) fn get_token_page_by_hash(
-    builder: &WasmTestBuilder<InMemoryGlobalState>,
-    nft_contract_key: &Key,
-    token_owner_key: &Key,
-    token_hash: String,
-) -> Vec<bool> {
-    let token_number: u64 =
-        get_dictionary_value_from_key(builder, nft_contract_key, INDEX_BY_HASH, &token_hash);
-    get_token_page_by_id(builder, nft_contract_key, token_owner_key, token_number)
-}
-
-pub(crate) fn get_stored_value_from_global_state<T: CLTyped + FromBytes>(
-    builder: &InMemoryWasmTestBuilder,
-    query_key: Key,
-    path: Vec<String>,
-) -> Result<T, CLValueError> {
-    builder
-        .query(None, query_key, &path)
-        .unwrap()
-        .as_cl_value()
-        .unwrap()
-        .clone()
-        .into_t::<T>()
-}
-
-pub(crate) fn get_receipt_name(nft_receipt: String, page_table_entry: u64) -> String {
-    format!("{nft_receipt}_m_{PAGE_SIZE}_p_{page_table_entry}")
 }
 
 pub fn get_event<T: FromBytes + CLTyped + Debug>(

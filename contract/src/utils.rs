@@ -681,7 +681,6 @@ pub fn add_page_entry_and_page_record(
         NFTCoreError::MissingPageUref,
         NFTCoreError::InvalidPageUref,
     );
-
     let mut page_table =
         match storage::dictionary_get::<Vec<bool>>(page_table_uref, item_key).unwrap_or_revert() {
             Some(page_table) => page_table,
@@ -704,7 +703,6 @@ pub fn add_page_entry_and_page_record(
     };
 
     let _ = core::mem::replace(&mut page[page_address as usize], true);
-
     storage::dictionary_put(page_uref, item_key, page);
     (page_table_entry, page_uref)
 }

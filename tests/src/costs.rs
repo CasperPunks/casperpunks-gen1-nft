@@ -146,7 +146,7 @@ fn transfer_costs_should_remain_stable() {
             ARG_IS_HASH_IDENTIFIER_MODE => false,
             ARG_SOURCE_KEY => Key::Account(*DEFAULT_ACCOUNT_ADDR),
             ARG_TARGET_KEY => Key::Account(AccountHash::new([9u8; 32])),
-            ARG_TOKEN_ID => 0u64,
+            ARG_TOKEN_ID => 1u64,
         },
     )
     .build();
@@ -164,7 +164,7 @@ fn transfer_costs_should_remain_stable() {
             ARG_IS_HASH_IDENTIFIER_MODE => false,
             ARG_SOURCE_KEY => Key::Account(*DEFAULT_ACCOUNT_ADDR),
             ARG_TARGET_KEY => Key::Account(AccountHash::new([9u8; 32])),
-            ARG_TOKEN_ID => 1u64,
+            ARG_TOKEN_ID => 2u64,
         },
     )
     .build();
@@ -187,7 +187,7 @@ fn transfer_costs_should_remain_stable() {
             ARG_IS_HASH_IDENTIFIER_MODE => false,
             ARG_SOURCE_KEY => Key::Account(*DEFAULT_ACCOUNT_ADDR),
             ARG_TARGET_KEY => Key::Account(AccountHash::new([9u8; 32])),
-            ARG_TOKEN_ID => 2u64,
+            ARG_TOKEN_ID => 3u64,
         },
     )
     .build();

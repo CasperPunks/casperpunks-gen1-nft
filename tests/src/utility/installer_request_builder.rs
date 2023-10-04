@@ -79,6 +79,7 @@ struct Metadata {
 
 #[repr(u8)]
 #[derive(Copy, Clone)]
+#[allow(dead_code)]
 pub enum NFTMetadataKind {
     CEP78 = 0,
     NFT721 = 1,
@@ -145,6 +146,7 @@ pub(crate) struct InstallerRequestBuilder {
     optional_metadata: CLValue,
     events_mode: CLValue,
     the_contract_minter: CLValue,
+    the_contract_owner: CLValue,
 }
 
 impl InstallerRequestBuilder {
@@ -152,6 +154,8 @@ impl InstallerRequestBuilder {
         Self::default()
             .with_account_hash(account_hash)
             .with_session_file(session_file.to_string())
+            .with_contract_minter(account_hash.into())
+            .with_contract_owner(account_hash.into())
     }
 
     pub(crate) fn default() -> Self {
@@ -172,7 +176,7 @@ impl InstallerRequestBuilder {
             contract_whitelist: CLValue::from_t(Vec::<ContractHash>::new()).unwrap(),
             json_schema: CLValue::from_t("test".to_string())
                 .expect("test_metadata was created from a concrete value"),
-            nft_metadata_kind: CLValue::from_t(NFTMetadataKind::NFT721 as u8).unwrap(),
+            nft_metadata_kind: CLValue::from_t(NFTMetadataKind::CEP78 as u8).unwrap(),
             identifier_mode: CLValue::from_t(NFTIdentifierMode::Ordinal as u8).unwrap(),
             metadata_mutability: CLValue::from_t(MetadataMutability::Mutable as u8).unwrap(),
             burn_mode: CLValue::from_t(BurnMode::Burnable as u8).unwrap(),
@@ -185,6 +189,7 @@ impl InstallerRequestBuilder {
             optional_metadata: CLValue::from_t(Bytes::new()).unwrap(),
             events_mode: CLValue::from_t(EventsMode::CES as u8).unwrap(),
             the_contract_minter: CLValue::from_t(Key::from(AccountHash::default())).unwrap(),
+            the_contract_owner: CLValue::from_t(Key::from(AccountHash::default())).unwrap(),
         }
     }
 
@@ -195,6 +200,11 @@ impl InstallerRequestBuilder {
 
     pub(crate) fn with_contract_minter(mut self, minter: Key) -> Self {
         self.the_contract_minter = CLValue::from_t(minter).unwrap();
+        self
+    }
+
+    pub(crate) fn with_contract_owner(mut self, owner: Key) -> Self {
+        self.the_contract_owner = CLValue::from_t(owner).unwrap();
         self
     }
 
@@ -342,6 +352,7 @@ impl InstallerRequestBuilder {
         runtime_args.insert_cl_value(ARG_NAMED_KEY_CONVENTION, self.named_key_convention);
         runtime_args.insert_cl_value(ARG_EVENTS_MODE, self.events_mode);
         runtime_args.insert_cl_value("the_contract_minter", self.the_contract_minter);
+        runtime_args.insert_cl_value("the_contract_owner", self.the_contract_owner);
         runtime_args.insert_cl_value(
             ARG_ADDITIONAL_REQUIRED_METADATA,
             self.additional_required_metadata,

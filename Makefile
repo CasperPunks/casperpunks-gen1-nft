@@ -63,7 +63,7 @@ test: setup-test
 	cd tests && cargo test
 
 test-one: setup-test
-	cd tests && cargo test should_install_contract -- --nocapture
+	cd tests && cargo test burn:: -- --nocapture
 
 clippy:
 	cd contract && cargo clippy --target wasm32-unknown-unknown --bins -- -D warnings
